@@ -99,12 +99,22 @@ export function speedLimitActive(p: PlayerTableau): boolean {
 export function canDrive(p: PlayerTableau): boolean {
   const top = battleTop(p)
   if (top === 0) return hasEmergencyVehicle(p)
-  if (top === CardId.Drive) return true
+  const def = getCard(top)
+  // Hazards stop you cold.
+  if (def.category === CardCategory.Hazard && def.isBattleHazard) return false
+  // Drive OR any battle remedy (Spare Tire, Gasoline, etc.) means you're moving.
+  // House rule: fixes restore GO so the race does not stall on double-taxes.
+  if (def.category === CardCategory.Remedy) return true
+  return false
+}
+
+/** True when a battle hazard can be played onto this tableau (they are "on the road"). */
+export function isAttackableBattleTarget(p: PlayerTableau): boolean {
+  const top = battleTop(p)
+  if (top === 0) return false
   const def = getCard(top)
   if (def.category === CardCategory.Hazard && def.isBattleHazard) return false
-  // Non-Drive remedy showing: EV allows driving without another Drive.
-  if (hasEmergencyVehicle(p) && def.category === CardCategory.Remedy) return true
-  return false
+  return def.category === CardCategory.Remedy
 }
 
 export function playMove(player: number, handIndex: number, card: CardId, target = -1): GameMove {

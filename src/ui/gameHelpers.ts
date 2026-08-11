@@ -209,7 +209,7 @@ export function whatShouldIDo(state: MatchState, localIndex: number): string {
       return `You are stuck under ${getCard(top).name}. Best: play the matching Safety (glowing), or play ${remedyName}.`
     }
     if (hasRemedy) {
-      return `You are stuck under ${getCard(top).name}. Play ${remedyName} now (it should glow). Then next turns: Drive, then miles.`
+      return `You are stuck under ${getCard(top).name}. Play ${remedyName} now (it should glow) — that restores GO so you can play miles again.`
     }
     return `You are stuck under ${getCard(top).name}. You need ${remedyName} (or the matching Safety). If you don't have it, discard something and hope to draw it.`
   }

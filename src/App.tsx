@@ -171,12 +171,9 @@ function AppInner() {
           <h2>How to Play</h2>
           <ol className="help-list">
             <li>
-              Play <strong>Drive</strong> so you are moving.
+              Play <strong>Drive</strong> to start moving, then green <strong>mile cards</strong> toward exactly 1000.
             </li>
-            <li>
-              Play green <strong>mile cards</strong> toward exactly 1000.
-            </li>
-            <li>Opponents hit you with red hazards — clear them with matching remedies/safeties.</li>
+            <li>Opponents hit you with red hazards — matching remedies/safeties clear them and put you back on the road (no second Drive needed after a fix).</li>
             <li>On your turn: double-click a lit card to play, or drag it up onto the table.</li>
             <li>Drag a card down to discard.</li>
           </ol>

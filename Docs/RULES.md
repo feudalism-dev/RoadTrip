@@ -12,16 +12,18 @@ First to exactly **1000** miles wins. Cannot overshoot. Max **two** 200-mile car
 
 ## Drive
 
-Miles require **Drive** on top of your battle pile, unless **Emergency Vehicle** is active and you are not blocked by a non-traffic hazard.
+Miles require you to be **moving**: **Drive** (or any battle remedy after a fix) on top of your battle pile, unless **Emergency Vehicle** is active with an empty battle pile.
+
+**House rule:** playing a matching battle remedy (Repairs, Gasoline, Spare Tire, Traffic Clear, Navigation Fix) **restores GO** — you may play miles on your next opportunity without another Drive. Drive is still required to start from an empty battle pile and to clear **Red Light**.
 
 ## Hazards
 
-- **Red Light, Accident, Out of Gas, Flat Tire, Traffic Jam, GPS Error** — battle pile (play onto opponent's Drive).
+- **Red Light, Accident, Out of Gas, Flat Tire, Traffic Jam, GPS Error** — battle pile (play onto an opponent who is moving).
 - **Speed Limit** — speed pile; while active, only 25/50 mile cards.
 
 ## Remedies
 
-Match the hazard. After flat/gas/accident/jam/gps remedy, play **Drive** before miles (unless Emergency Vehicle). Red Light is cleared by Drive. Speed Limit cleared by End of Limit.
+Match the hazard. Battle fixes put you back on the road (miles OK). Red Light is cleared by Drive. Speed Limit cleared by End of Limit.
 
 ## Safeties
 

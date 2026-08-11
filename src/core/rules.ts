@@ -3,6 +3,7 @@ import {
   battleTop,
   speedTop,
   canDrive,
+  isAttackableBattleTarget,
   hasEmergencyVehicle,
   isImmuneTo,
   hasSafety,
@@ -115,12 +116,7 @@ export function canPlayHazard(state: MatchState, attacker: number, target: numbe
     const top = speedTop(victim)
     return top === 0 || top === CardId.EndOfLimit
   }
-  const battle = battleTop(victim)
-  if (battle === CardId.Drive) return true
-  if (hasEmergencyVehicle(victim) && battle !== 0) {
-    return getCard(battle).category === CardCategory.Remedy
-  }
-  return false
+  return isAttackableBattleTarget(victim)
 }
 
 export function getLegalMoves(state: MatchState): GameMove[] {

@@ -96,4 +96,20 @@ describe('RulesEngine', () => {
     expect(alice.safeties).toContain(CardId.DrivingAce)
     expect(state.drawPile.length).toBeLessThan(drawBefore)
   })
+
+  it('battle remedy restores GO for miles', () => {
+    const state = createMatch(['Alice', 'Bob'], [true, true], defaultConfig(23))
+    const alice = state.players[0]!
+    alice.battlePile = [CardId.SpareTire]
+    alice.hand = [CardId.Miles25]
+    expect(canPlayDistance(state, 0, CardId.Miles25)).toBe(true)
+    expect(tryApply(state, playMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(alice.miles).toBe(25)
+  })
+
+  it('hazard can hit a player showing a fix remedy', () => {
+    const state = createMatch(['Alice', 'Bob'], [true, true], defaultConfig(25))
+    state.players[1]!.battlePile = [CardId.Gasoline]
+    expect(canPlayHazard(state, 0, 1, CardId.FlatTire)).toBe(true)
+  })
 })
