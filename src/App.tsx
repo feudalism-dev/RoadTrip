@@ -1,14 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import './styles/app.css'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import './styles/tabletop.css'
 import {
   startSolo,
   isLegalPlay,
-  cardClass,
-  formatBattle,
-  driveStatus,
-  speedStatus,
-  turnBanner,
-  whatShouldIDo,
   playMove,
   discardMove,
   getLegalMoves,
@@ -21,10 +15,21 @@ import type { AiDifficulty } from './ai/heuristic'
 import { createPeerHost, joinPeerRoom, type PeerSession } from './net/peerSession'
 import { CardCategory } from './core/cards'
 import type { MatchState } from './core/rules'
+import { GameBoard } from './ui/GameBoard'
+import { ToastManager, useToasts } from './ui/ToastManager'
 
 type Screen = 'menu' | 'soloSetup' | 'lobby' | 'game' | 'help'
 
 export default function App() {
+  return (
+    <ToastManager>
+      <AppInner />
+    </ToastManager>
+  )
+}
+
+function AppInner() {
+  const { push } = useToasts()
   const [screen, setScreen] = useState<Screen>('menu')
   const [name, setName] = useState('You')
   const [aiCount, setAiCount] = useState(1)
@@ -37,6 +42,7 @@ export default function App() {
   const [target, setTarget] = useState(-1)
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const lastToast = useRef('')
 
   useEffect(() => {
     if (!peer) return
@@ -55,6 +61,65 @@ export default function App() {
 
   const bump = () => setTick((t) => t + 1)
 
+  useEffect(() => {
+    if (peer?.state && screen === 'lobby') setScreen('game')
+  }, [peer?.state, screen, tick])
+
+  useEffect(() => {
+    if (!state?.lastMessage) return
+    setStatus(state.lastMessage)
+    if (state.lastMessage !== lastToast.current) {
+      lastToast.current = state.lastMessage
+      push(state.lastMessage)
+    }
+  }, [state?.lastMessage, tick, push])
+
+  const legalIndexes = useMemo(() => {
+    if (!state) return new Set<number>()
+    const set = new Set<number>()
+    for (const m of getLegalMoves(state)) {
+      if (m.playerIndex === localIndex && m.kind === MoveKind.Play) set.add(m.handIndex)
+    }
+    state.players[localIndex]!.hand.forEach((_, i) => {
+      if (isLegalPlay(state, localIndex, i)) set.add(i)
+    })
+    return set
+  }, [state, localIndex, tick])
+
+  const playIndex = (handIndex: number) => {
+    if (!state || aiThinking) return
+    const card = state.players[localIndex]!.hand[handIndex]
+    if (card === undefined) return
+    const def = getCard(card)
+    let t = -1
+    if (def.category === CardCategory.Hazard) {
+      if (target < 0 || target === localIndex) {
+        push('Click an opponent tableau first, then play the hazard.')
+        setSelected(handIndex)
+        return
+      }
+      t = target
+    }
+    if (!legalIndexes.has(handIndex) && !isLegalPlay(state, localIndex, handIndex)) {
+      push('That card is not playable right now.')
+      return
+    }
+    local?.submit(playMove(localIndex, handIndex, card, t))
+    peer?.submit(playMove(localIndex, handIndex, card, t))
+    setSelected(-1)
+    bump()
+  }
+
+  const discardIndex = (handIndex: number) => {
+    if (!state || aiThinking) return
+    const card = state.players[localIndex]!.hand[handIndex]
+    if (card === undefined) return
+    local?.submit(discardMove(localIndex, handIndex, card))
+    peer?.submit(discardMove(localIndex, handIndex, card))
+    setSelected(-1)
+    bump()
+  }
+
   const startLocal = () => {
     local?.destroy()
     const ctrl = startSolo(name, aiCount, difficulty)
@@ -64,107 +129,36 @@ export default function App() {
     setTarget(-1)
     setScreen('game')
     setStatus(ctrl.state.lastMessage)
+    push(ctrl.state.lastMessage)
   }
 
-  const createRoom = async () => {
-    setBusy(true)
-    try {
-      peer?.destroy()
-      local?.destroy()
-      const session = await createPeerHost(name)
-      setPeer(session)
-      setLocal(null)
-      setStatus(session.status)
-      setScreen('lobby')
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : 'Could not create room')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const joinRoom = async () => {
-    setBusy(true)
-    try {
-      peer?.destroy()
-      local?.destroy()
-      const session = await joinPeerRoom(roomInput.trim(), name)
-      setPeer(session)
-      setLocal(null)
-      setStatus(session.status)
-      setScreen('lobby')
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : 'Could not join room')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  useEffect(() => {
-    if (peer?.state && screen === 'lobby') setScreen('game')
-  }, [peer?.state, screen, tick])
-
-  useEffect(() => {
-    if (state) setStatus(state.lastMessage)
-  }, [state?.lastMessage, tick])
-
-  const legalSet = useMemo(() => {
-    if (!state) return new Set<number>()
-    const set = new Set<number>()
-    for (const m of getLegalMoves(state)) {
-      if (m.playerIndex === localIndex && m.kind === MoveKind.Play) set.add(m.handIndex)
-    }
-    return set
-  }, [state, localIndex, tick])
-
-  const submitPlay = () => {
-    if (!state || selected < 0 || aiThinking) return
-    const card = state.players[localIndex]!.hand[selected]!
-    const def = getCard(card)
-    let t = -1
-    if (def.category === CardCategory.Hazard) {
-      if (target < 0 || target === localIndex) {
-        setStatus('First click an opponent card area, then Play.')
-        return
-      }
-      t = target
-    }
-    local?.submit(playMove(localIndex, selected, card, t))
-    peer?.submit(playMove(localIndex, selected, card, t))
-    setSelected(-1)
-    bump()
-  }
-
-  const submitDiscard = () => {
-    if (!state || selected < 0 || aiThinking) return
-    const card = state.players[localIndex]!.hand[selected]!
-    local?.submit(discardMove(localIndex, selected, card))
-    peer?.submit(discardMove(localIndex, selected, card))
-    setSelected(-1)
-    bump()
-  }
-
-  const doCoup = () => {
-    if (!state || aiThinking) return
-    const move = getLegalMoves(state).find((m) => m.kind === MoveKind.CoupFourre)
-    if (move) {
-      local?.submit(move)
-      peer?.submit(move)
-      bump()
-    }
+  const leaveToMenu = () => {
+    peer?.destroy()
+    local?.destroy()
+    setPeer(null)
+    setLocal(null)
+    setScreen('menu')
   }
 
   if (screen === 'menu') {
     return (
-      <div className="app">
-        <div className="panel menu">
-          <h1 className="brand">ROAD TRIP</h1>
-          <p className="tag">A modern night-drive take on Mille Bornes.<br />Race exactly 1,000 miles.</p>
-          <div className="stack">
-            <button className="btn cyan" onClick={() => setScreen('soloSetup')}>Play Solo vs AI</button>
-            <button className="btn amber" onClick={() => setScreen('lobby')}>Multiplayer Lobby</button>
-            <button className="btn ghost" onClick={() => setScreen('help')}>How to Play</button>
-          </div>
+      <div className="shell-menu">
+        <div className="menu-card">
+          <h1>ROAD TRIP</h1>
+          <p>
+            A modern night-drive take on Mille Bornes.
+            <br />
+            Race exactly 1,000 miles across the table.
+          </p>
+          <button className="btn primary" onClick={() => setScreen('soloSetup')}>
+            Play Solo vs AI
+          </button>
+          <button className="btn secondary" onClick={() => setScreen('lobby')}>
+            Multiplayer Lobby
+          </button>
+          <button className="btn ghost" onClick={() => setScreen('help')}>
+            How to Play
+          </button>
         </div>
       </div>
     )
@@ -172,30 +166,23 @@ export default function App() {
 
   if (screen === 'help') {
     return (
-      <div className="app">
-        <div className="panel menu" style={{ maxWidth: 680, textAlign: 'left' }}>
-          <h2 className="brand" style={{ fontSize: '2rem' }}>How to Play</h2>
-          <p className="help">{`Think of it like a race board:
-
-1. Play a green DRIVE card so you are "moving".
-2. Play MILE cards (25/50/75/100/200) to add distance.
-3. First to exactly 1000 wins (can't go over).
-
-Opponents will:
-• Play hazards on YOU to stop your car
-• Drive their own miles when they can
-• Play safeties for permanent protection
-
-On YOUR turn you only do ONE thing:
-• Play one card, OR discard one card
-
-If you are stopped (red status), play the matching remedy,
-then Drive again before more miles.
-
-Glowing cards = legal plays right now.
-Yellow "TURN" on a player = it is their turn.
-Watch the Action Log to see what everyone just did.`}</p>
-          <button className="btn amber" onClick={() => setScreen('menu')}>Back</button>
+      <div className="shell-menu">
+        <div className="menu-card wide">
+          <h2>How to Play</h2>
+          <ol className="help-list">
+            <li>
+              Play <strong>Drive</strong> so you are moving.
+            </li>
+            <li>
+              Play green <strong>mile cards</strong> toward exactly 1000.
+            </li>
+            <li>Opponents hit you with red hazards — clear them with matching remedies/safeties.</li>
+            <li>On your turn: double-click a lit card to play, or drag it up onto the table.</li>
+            <li>Drag a card down to discard.</li>
+          </ol>
+          <button className="btn secondary" onClick={() => setScreen('menu')}>
+            Back
+          </button>
         </div>
       </div>
     )
@@ -203,30 +190,35 @@ Watch the Action Log to see what everyone just did.`}</p>
 
   if (screen === 'soloSetup') {
     return (
-      <div className="app">
-        <div className="panel menu">
-          <h2 className="brand" style={{ fontSize: '2rem' }}>Solo Road Trip</h2>
-          <div className="stack">
-            <label className="field">Driver name
-              <input value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label className="field">AI opponents
-              <select value={aiCount} onChange={(e) => setAiCount(Number(e.target.value))}>
-                <option value={1}>1</option>
-                <option value={2}>2</option>
-                <option value={3}>3</option>
-              </select>
-            </label>
-            <label className="field">Difficulty
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as AiDifficulty)}>
-                <option value="easy">Easy</option>
-                <option value="normal">Normal</option>
-                <option value="hard">Hard</option>
-              </select>
-            </label>
-            <button className="btn green" onClick={startLocal}>Start Race</button>
-            <button className="btn ghost" onClick={() => setScreen('menu')}>Back</button>
-          </div>
+      <div className="shell-menu">
+        <div className="menu-card">
+          <h2>Solo Road Trip</h2>
+          <label>
+            Driver name
+            <input value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label>
+            AI opponents
+            <select value={aiCount} onChange={(e) => setAiCount(Number(e.target.value))}>
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+          </label>
+          <label>
+            Difficulty
+            <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as AiDifficulty)}>
+              <option value="easy">Easy</option>
+              <option value="normal">Normal</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+          <button className="btn primary" onClick={startLocal}>
+            Start Race
+          </button>
+          <button className="btn ghost" onClick={() => setScreen('menu')}>
+            Back
+          </button>
         </div>
       </div>
     )
@@ -234,34 +226,99 @@ Watch the Action Log to see what everyone just did.`}</p>
 
   if (screen === 'lobby' && !state) {
     return (
-      <div className="app">
-        <div className="panel menu" style={{ maxWidth: 560 }}>
-          <h2 className="brand" style={{ fontSize: '2rem' }}>Multiplayer Lobby</h2>
-          <p className="tag">Peer-to-peer rooms (free). Share the room code with friends.</p>
-          <div className="stack">
-            <label className="field">Driver name
-              <input value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label className="field">Room code
-              <input value={roomInput} onChange={(e) => setRoomInput(e.target.value.toUpperCase())} placeholder="ABCDE" />
-            </label>
-            <button className="btn cyan" disabled={busy} onClick={createRoom}>Create Room</button>
-            <button className="btn amber" disabled={busy} onClick={joinRoom}>Join Room</button>
-            {peer && (
-              <>
-                <p className="muted">Room <strong>{peer.roomCode}</strong></p>
-                <ul className="muted" style={{ textAlign: 'left' }}>
-                  {peer.seats.map((s) => (
-                    <li key={s.id}>{s.isHost ? '[Host] ' : ''}{s.name}{s.ready ? ' ✓' : ' …'}</li>
-                  ))}
-                </ul>
-                <button className="btn green" onClick={() => peer.setReady(true)}>Ready</button>
-                {peer.isHost && <button className="btn cyan" onClick={() => { peer.startMatch(); bump() }}>Start Match</button>}
-              </>
-            )}
-            {status && <p className="muted">{status}</p>}
-            <button className="btn ghost" onClick={() => { peer?.destroy(); setPeer(null); setScreen('menu') }}>Back</button>
-          </div>
+      <div className="shell-menu">
+        <div className="menu-card">
+          <h2>Multiplayer Lobby</h2>
+          <label>
+            Driver name
+            <input value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label>
+            Room code
+            <input
+              value={roomInput}
+              onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
+              placeholder="ABCDE"
+            />
+          </label>
+          <button
+            className="btn primary"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              try {
+                peer?.destroy()
+                local?.destroy()
+                const session = await createPeerHost(name)
+                setPeer(session)
+                setLocal(null)
+                setStatus(session.status)
+                setScreen('lobby')
+              } catch (e) {
+                setStatus(e instanceof Error ? e.message : 'Create failed')
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            Create Room
+          </button>
+          <button
+            className="btn secondary"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              try {
+                peer?.destroy()
+                local?.destroy()
+                const session = await joinPeerRoom(roomInput.trim(), name)
+                setPeer(session)
+                setLocal(null)
+                setStatus(session.status)
+                setScreen('lobby')
+              } catch (e) {
+                setStatus(e instanceof Error ? e.message : 'Join failed')
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            Join Room
+          </button>
+          {peer && (
+            <>
+              <p>
+                Room <strong>{peer.roomCode}</strong>
+              </p>
+              <ul>
+                {peer.seats.map((s) => (
+                  <li key={s.id}>
+                    {s.isHost ? '[Host] ' : ''}
+                    {s.name}
+                    {s.ready ? ' ✓' : ''}
+                  </li>
+                ))}
+              </ul>
+              <button className="btn secondary" onClick={() => peer.setReady(true)}>
+                Ready
+              </button>
+              {peer.isHost && (
+                <button
+                  className="btn primary"
+                  onClick={() => {
+                    peer.startMatch()
+                    bump()
+                  }}
+                >
+                  Start Match
+                </button>
+              )}
+            </>
+          )}
+          {status && <p className="muted">{status}</p>}
+          <button className="btn ghost" onClick={leaveToMenu}>
+            Back
+          </button>
         </div>
       </div>
     )
@@ -269,165 +326,76 @@ Watch the Action Log to see what everyone just did.`}</p>
 
   if (!state) return null
 
-  const me = state.players[localIndex]!
   const myTurn = state.currentPlayer === localIndex && state.phase === MatchPhase.Playing && !aiThinking
-  const myCoup =
-    state.phase === MatchPhase.AwaitingCoupFourre &&
-    state.pending?.targetIndex === localIndex
-  const banner = turnBanner(state, localIndex, aiThinking)
+  const myCoup = state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === localIndex
+
+  let coupBanner: ReactNode = null
+  if (myCoup) {
+    coupBanner = (
+      <div className="banner-overlay">
+        <div className="banner-card">
+          <h2>You were attacked!</h2>
+          <p>Play your matching Safety for a Coup Fourré, or take the hit.</p>
+          <button
+            className="btn primary"
+            onClick={() => {
+              const move = getLegalMoves(state).find((m) => m.kind === MoveKind.CoupFourre)
+              if (move) {
+                local?.submit(move)
+                peer?.submit(move)
+                bump()
+              }
+            }}
+          >
+            Counter! (Coup Fourré)
+          </button>
+          <button
+            className="btn ghost"
+            onClick={() => {
+              local?.declineCoup()
+              peer?.declineCoup()
+              bump()
+            }}
+          >
+            Take the hit
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  let endOverlay: ReactNode = null
+  if (state.phase === MatchPhase.Finished) {
+    endOverlay = (
+      <div className="banner-overlay">
+        <div className="banner-card">
+          <h2>{state.winnerIndex >= 0 ? state.players[state.winnerIndex]!.displayName : 'Nobody'}</h2>
+          <p>{state.lastMessage}</p>
+          <button className="btn primary" onClick={leaveToMenu}>
+            Main Menu
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="app">
-      <div className="topbar">
-        <div className="brand" style={{ fontSize: '1.4rem', margin: 0 }}>ROAD TRIP</div>
-        <button
-          className="btn ghost"
-          onClick={() => {
-            peer?.destroy()
-            local?.destroy()
-            setPeer(null)
-            setLocal(null)
-            setScreen('menu')
-          }}
-        >
-          Menu
-        </button>
-      </div>
-
-      <div className={`turn-banner ${myTurn ? 'yours' : 'theirs'}`}>
-        {banner}
-        {!myTurn && !myCoup && state.phase !== MatchPhase.Finished && (
-          <span className="turn-sub">Watch the Action Log — each opponent play appears there.</span>
-        )}
-        {myTurn && (
-          <span className="turn-sub">
-            Bright cards with a <strong>CAN PLAY</strong> tag are legal. Dim cards are not. Click one, then Play or Discard.
-          </span>
-        )}
-      </div>
-
-      <div className="route">
-        {state.players.map((p, i) => {
-          const pct = Math.min(100, (p.miles / state.config.goalMiles) * 100)
-          return (
-            <div
-              key={i}
-              className={`car ${state.currentPlayer === i ? 'active-car' : ''}`}
-              style={{
-                left: `calc(${pct}% - 27px)`,
-                top: 12 + i * 14,
-                background: i === localIndex ? 'var(--cyan)' : 'var(--amber)',
-              }}
-              title={p.displayName}
-            >
-              {p.miles}
-            </div>
-          )
-        })}
-        <div className="route-label">NIGHT HIGHWAY · 0 ──────── 1000</div>
-      </div>
-
-      <div className="opponents">
-        {state.players.map((p, i) => {
-          if (i === localIndex) return null
-          const theirTurn = state.currentPlayer === i
-          return (
-            <button
-              key={i}
-              className={`seat ${target === i ? 'selected' : ''} ${theirTurn ? 'turn' : ''}`}
-              onClick={() => setTarget(i)}
-            >
-              <div className="who-label">OPPONENT</div>
-              {theirTurn && <div className="turn-pill">THEIR TURN</div>}
-              <strong>{p.displayName}</strong>
-              <div>{p.miles} mi (racing to 1000)</div>
-              <div>Top card: {formatBattle(state, i)}</div>
-              <div>{speedStatus(state, i)}</div>
-              <div className="muted">{p.safeties.map((s) => getCard(s).shortName).join(', ') || 'no safeties'}</div>
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="coach panel">
-        <strong>What should I do?</strong>
-        <p>{whatShouldIDo(state, localIndex)}</p>
-      </div>
-
-      <div className="grid-2">
-        <div className="panel tableau">
-          <div className="who-label">YOU</div>
-          <div><strong>{me.displayName}</strong> · {me.miles} / {state.config.goalMiles} miles</div>
-          <div>Top card on you: <strong>{formatBattle(state, localIndex)}</strong></div>
-          <div>{driveStatus(state, localIndex)}</div>
-          <div>{speedStatus(state, localIndex)}</div>
-          <div>Safeties: {me.safeties.map((s) => getCard(s).shortName).join(', ') || 'None yet'}</div>
-          <div className="muted">Deck {state.drawPile.length} · Discard {state.discardPile.length}</div>
-          {target >= 0 && target !== localIndex && (
-            <div className="hint">Hazard target: {state.players[target]!.displayName}</div>
-          )}
-        </div>
-
-        <div className="panel log-panel">
-          <strong>Action Log</strong>
-          <ol className="log">
-            {actionLog.map((line, i) => (
-              <li key={`${i}-${line.slice(0, 24)}`} className={i === 0 ? 'latest' : ''}>{line}</li>
-            ))}
-          </ol>
-        </div>
-      </div>
-
-      <div className="actions-row">
-        <button className="btn green" disabled={!myTurn || selected < 0} onClick={submitPlay}>Play selected</button>
-        <button className="btn red" disabled={!myTurn || selected < 0} onClick={submitDiscard}>Discard selected</button>
-      </div>
-
-      <div className={`hand ${myTurn ? 'choosing' : ''}`}>
-        {me.hand.map((card, i) => {
-          const def = getCard(card)
-          const legal = myTurn && (legalSet.has(i) || isLegalPlay(state, localIndex, i))
-          return (
-            <button
-              key={`${card}-${i}-${tick}`}
-              className={`${cardClass(def.category)}${legal ? ' legal' : ''}${selected === i ? ' selected' : ''}`}
-              onClick={() => !aiThinking && setSelected(i)}
-              disabled={aiThinking}
-            >
-              {legal && <span className="playable-tag">CAN PLAY</span>}
-              <span className="title">{def.shortName}</span>
-              <span className="meta">{def.name}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {myCoup && (
-        <div className="banner">
-          <div className="panel">
-            <h2>You were hit!</h2>
-            <p className="muted">You hold the matching Safety — Coup Fourré cancels the attack and gives you the turn.</p>
-            <div className="stack">
-              <button className="btn green" onClick={doCoup}>Counter! (Coup Fourré)</button>
-              <button className="btn ghost" onClick={() => { local?.declineCoup(); peer?.declineCoup(); bump() }}>Take the hit</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {state.phase === MatchPhase.Finished && (
-        <div className="overlay">
-          <div className="panel">
-            <h2 className="brand" style={{ fontSize: '2rem' }}>
-              {state.winnerIndex >= 0 ? state.players[state.winnerIndex]!.displayName : 'Nobody'}
-            </h2>
-            <p>{state.lastMessage}</p>
-            <button className="btn cyan" onClick={() => { peer?.destroy(); local?.destroy(); setPeer(null); setLocal(null); setScreen('menu') }}>
-              Main Menu
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    <GameBoard
+      state={state}
+      localIndex={localIndex}
+      log={actionLog}
+      legalIndexes={legalIndexes}
+      selected={selected}
+      target={target}
+      myTurn={myTurn}
+      aiThinking={aiThinking}
+      onSelectCard={setSelected}
+      onPlayIndex={playIndex}
+      onDiscardIndex={discardIndex}
+      onSelectTarget={setTarget}
+      onMenu={leaveToMenu}
+      coupBanner={coupBanner}
+      endOverlay={endOverlay}
+    />
   )
 }

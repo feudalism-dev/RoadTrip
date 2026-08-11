@@ -40,4 +40,5 @@ Site: `https://<you>.github.io/RoadTrip/`
 
 - [RULES.md](Docs/RULES.md)
 - [DESIGN.md](Docs/DESIGN.md)
+- [ASSETS.md](Docs/ASSETS.md) — ComfyUI-generated tabletop art
 - [DEFERRED.md](Docs/DEFERRED.md)
