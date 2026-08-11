@@ -201,6 +201,29 @@ button, input, select {
   gap: 0.25rem;
 }
 
+.who-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--cyan);
+  margin-bottom: 0.25rem;
+}
+
+.seat .who-label {
+  color: var(--amber);
+}
+
+.coach {
+  margin-bottom: 0.75rem;
+}
+
+.coach p {
+  margin: 0.4rem 0 0;
+  color: var(--text);
+  font-size: 1.02rem;
+  line-height: 1.45;
+}
+
 .route {
   position: relative;
   height: 72px;

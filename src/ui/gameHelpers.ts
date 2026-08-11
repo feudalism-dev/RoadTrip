@@ -1,4 +1,4 @@
-import { MatchPhase, MoveKind, CardCategory, getCard, type CardId } from '../core/cards'
+import { MatchPhase, MoveKind, CardCategory, CardId, getCard, safetyBlocksHazard } from '../core/cards'
 import {
   createMatch,
   tryApply,
@@ -172,17 +172,80 @@ export function cardClass(category: CardCategory): string {
 export function formatBattle(state: MatchState, i: number): string {
   const p = state.players[i]!
   const top = battleTop(p)
-  return top ? getCard(top as CardId).name : 'empty (need Drive)'
+  return top ? getCard(top).name : 'empty'
 }
 
 export function driveStatus(state: MatchState, i: number): string {
   const p = state.players[i]!
-  if (canDrive(p)) return 'Can play miles'
-  return 'Stopped — need Drive / clear hazard'
+  if (canDrive(p)) return 'Moving — you may play mile cards'
+  return 'Stopped — cannot play mile cards yet'
 }
 
 export function speedStatus(state: MatchState, i: number): string {
-  return speedLimitActive(state.players[i]!) ? 'Speed limited (25/50 only)' : 'No speed limit'
+  return speedLimitActive(state.players[i]!) ? 'Speed limited (only 25 or 50)' : 'No speed limit'
+}
+
+/** Plain-English coaching for the human player. */
+export function whatShouldIDo(state: MatchState, localIndex: number): string {
+  const me = state.players[localIndex]!
+  const top = battleTop(me)
+
+  if (state.phase === MatchPhase.Finished) return 'The race is over.'
+
+  if (state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === localIndex) {
+    return 'You were attacked. Press Counter! if you have the matching Safety, or Take the hit.'
+  }
+
+  if (state.currentPlayer !== localIndex) {
+    return `Wait — ${state.players[state.currentPlayer]!.displayName} is playing right now.`
+  }
+
+  // Hazard on battle pile
+  if (top && getCard(top).category === CardCategory.Hazard && getCard(top).isBattleHazard) {
+    const remedyName = remedyNameFor(top)
+    const hasRemedy = me.hand.some((c) => getCard(c).countersHazard === top || (top === CardId.RedLight && c === CardId.Drive))
+    const hasSafety = me.hand.some((c) => safetyBlocksHazard(c, top))
+    if (hasSafety) {
+      return `You are stuck under ${getCard(top).name}. Best: play the matching Safety (glowing), or play ${remedyName}.`
+    }
+    if (hasRemedy) {
+      return `You are stuck under ${getCard(top).name}. Play ${remedyName} now (it should glow). Then next turns: Drive, then miles.`
+    }
+    return `You are stuck under ${getCard(top).name}. You need ${remedyName} (or the matching Safety). If you don't have it, discard something and hope to draw it.`
+  }
+
+  // Empty or non-drive remedy showing — need Drive
+  if (!canDrive(me)) {
+    const hasDrive = me.hand.includes(CardId.Drive)
+    if (hasDrive) return 'Play Drive (GO) so you can start adding miles next.'
+    return 'You need a Drive (GO) card before miles. Discard something else, or play a Safety if you have one.'
+  }
+
+  // Can drive
+  const mile = me.hand.find((c) => getCard(c).category === CardCategory.Distance && me.miles + getCard(c).miles <= state.config.goalMiles)
+  if (mile) {
+    return `You're moving. Play a mile card (glowing), or hit Cruise Control with a hazard if you want to slow them down.`
+  }
+  return 'Play a Safety, play a hazard on an opponent (click them first), or discard.'
+}
+
+function remedyNameFor(hazard: CardId): string {
+  switch (hazard) {
+    case CardId.RedLight:
+      return 'Drive'
+    case CardId.Accident:
+      return 'Repairs'
+    case CardId.OutOfGas:
+      return 'Gasoline'
+    case CardId.FlatTire:
+      return 'Spare Tire'
+    case CardId.TrafficJam:
+      return 'Traffic Clear'
+    case CardId.GpsError:
+      return 'Navigation Fix'
+    default:
+      return 'the matching remedy'
+  }
 }
 
 export function turnBanner(state: MatchState, localIndex: number, aiThinking: boolean): string {

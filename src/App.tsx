@@ -8,6 +8,7 @@ import {
   driveStatus,
   speedStatus,
   turnBanner,
+  whatShouldIDo,
   playMove,
   discardMove,
   getLegalMoves,
@@ -334,10 +335,11 @@ Watch the Action Log to see what everyone just did.`}</p>
               className={`seat ${target === i ? 'selected' : ''} ${theirTurn ? 'turn' : ''}`}
               onClick={() => setTarget(i)}
             >
+              <div className="who-label">OPPONENT</div>
               {theirTurn && <div className="turn-pill">THEIR TURN</div>}
               <strong>{p.displayName}</strong>
-              <div>{p.miles} mi</div>
-              <div>Battle: {formatBattle(state, i)}</div>
+              <div>{p.miles} mi (racing to 1000)</div>
+              <div>Top card: {formatBattle(state, i)}</div>
               <div>{speedStatus(state, i)}</div>
               <div className="muted">{p.safeties.map((s) => getCard(s).shortName).join(', ') || 'no safeties'}</div>
             </button>
@@ -345,10 +347,16 @@ Watch the Action Log to see what everyone just did.`}</p>
         })}
       </div>
 
+      <div className="coach panel">
+        <strong>What should I do?</strong>
+        <p>{whatShouldIDo(state, localIndex)}</p>
+      </div>
+
       <div className="grid-2">
         <div className="panel tableau">
-          <div><strong>You</strong> · {me.miles} / {state.config.goalMiles} miles</div>
-          <div>Battle pile: {formatBattle(state, localIndex)}</div>
+          <div className="who-label">YOU</div>
+          <div><strong>{me.displayName}</strong> · {me.miles} / {state.config.goalMiles} miles</div>
+          <div>Top card on you: <strong>{formatBattle(state, localIndex)}</strong></div>
           <div>{driveStatus(state, localIndex)}</div>
           <div>{speedStatus(state, localIndex)}</div>
           <div>Safeties: {me.safeties.map((s) => getCard(s).shortName).join(', ') || 'None yet'}</div>
