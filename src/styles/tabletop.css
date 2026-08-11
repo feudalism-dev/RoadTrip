@@ -374,26 +374,40 @@ select {
   justify-content: center;
 }
 
+/* Piles + hint share one board-mid row so YOUR TURN doesn't jump when draw mode toggles. */
+.center-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0 0.15rem;
+}
+
 .center-piles {
   display: flex;
   justify-content: center;
   gap: 1.5rem;
-  padding: 0.25rem 0;
 }
 
-.center-piles.is-drawing .pile.is-hot {
+.center-zone.is-drawing .pile.is-hot {
   cursor: pointer;
   animation: legal-glow 1.4s ease-in-out infinite;
   border-radius: 12px;
 }
 
 .draw-hint {
+  margin: 0;
+  min-height: 1.15em;
   text-align: center;
-  margin: 0.15rem 0 0.35rem;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--gold);
   text-shadow: 0 1px 2px #000;
+  line-height: 1.15;
+}
+
+.draw-hint.is-empty {
+  visibility: hidden;
 }
 
 .pile {
@@ -632,6 +646,12 @@ select {
   opacity: 0.65;
   padding: 0.25rem;
   background: rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+}
+
+.empty-slot.md {
+  width: var(--card-w-md);
+  height: var(--card-h-md);
 }
 
 .empty-slot.tiny {

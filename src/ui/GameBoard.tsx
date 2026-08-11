@@ -96,35 +96,37 @@ export function GameBoard({
           ))}
         </div>
 
-        <div className={`center-piles ${myDraw ? 'is-drawing' : ''}`}>
-          <div
-            className={`pile ${myDraw && state.drawPile.length ? 'is-hot' : ''}`}
-            onDoubleClick={() => {
-              if (myDraw && state.drawPile.length) onDrawDeck()
-            }}
-            title={myDraw ? 'Double-click to draw from the deck' : undefined}
-          >
-            <Card faceDown size="md" />
-            <span className="pile-count">{state.drawPile.length}</span>
-            <span className="pile-label">Draw</span>
+        <div className={`center-zone ${myDraw ? 'is-drawing' : ''}`}>
+          <div className="center-piles">
+            <div
+              className={`pile ${myDraw && state.drawPile.length ? 'is-hot' : ''}`}
+              onDoubleClick={() => {
+                if (myDraw && state.drawPile.length) onDrawDeck()
+              }}
+              title={myDraw ? 'Double-click to draw from the deck' : undefined}
+            >
+              <Card faceDown size="md" />
+              <span className="pile-count">{state.drawPile.length}</span>
+              <span className="pile-label">Draw</span>
+            </div>
+            <div
+              className={`pile ${myDraw && discardTop !== undefined ? 'is-hot' : ''}`}
+              onDoubleClick={() => {
+                if (myDraw && discardTop !== undefined) onDrawDiscard()
+              }}
+              title={myDraw && discardTop !== undefined ? 'Double-click to take discard' : undefined}
+            >
+              {discardTop !== undefined ? (
+                <Card id={discardTop} size="md" />
+              ) : (
+                <div className="empty-slot md">Discard</div>
+              )}
+              <span className="pile-count">{state.discardPile.length}</span>
+              <span className="pile-label">Discard</span>
+            </div>
           </div>
-          <div
-            className={`pile ${myDraw && discardTop !== undefined ? 'is-hot' : ''}`}
-            onDoubleClick={() => {
-              if (myDraw && discardTop !== undefined) onDrawDiscard()
-            }}
-            title={myDraw && discardTop !== undefined ? 'Double-click to take discard' : undefined}
-          >
-            {discardTop !== undefined ? (
-              <Card id={discardTop} size="md" />
-            ) : (
-              <div className="empty-slot">Discard</div>
-            )}
-            <span className="pile-count">{state.discardPile.length}</span>
-            <span className="pile-label">Discard</span>
-          </div>
+          <p className={`draw-hint ${drawHint ? '' : 'is-empty'}`}>{drawHint ?? '\u00a0'}</p>
         </div>
-        {drawHint && <p className="draw-hint">{drawHint}</p>}
 
         <Tableau state={state} playerIndex={localIndex} localIndex={localIndex} />
       </div>
