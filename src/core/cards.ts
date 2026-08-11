@@ -40,6 +40,8 @@ export enum MoveKind {
   Play = 1,
   Discard = 2,
   CoupFourre = 3,
+  DrawDeck = 4,
+  DrawDiscard = 5,
 }
 
 export enum MatchPhase {
@@ -47,7 +49,12 @@ export enum MatchPhase {
   Playing = 1,
   AwaitingCoupFourre = 2,
   Finished = 3,
+  AwaitingDraw = 4,
 }
+
+/** Solo and multiplayer seats (1 human + up to 3 others, or 2–4 humans). */
+export const MAX_PLAYERS = 4
+export const MIN_PLAYERS = 2
 
 export type CardDef = {
   id: CardId

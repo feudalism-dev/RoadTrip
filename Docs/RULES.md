@@ -1,12 +1,16 @@
 # Road Trip — Rules (v1)
 
+## Players
+
+**2 to 4** drivers (solo: you + 1–3 AI; multiplayer: up to 4 humans).
+
 ## Goal
 
 First to exactly **1000** miles wins. Cannot overshoot. Max **two** 200-mile cards per hand.
 
 ## Turn
 
-1. Draw one card (automatic at turn start).
+1. **Draw** one card: double-click the **Draw** pile or the top of the **Discard** pile. If the discard pile is empty, you auto-draw from the deck.
 2. Play one card **or** discard one.
 3. Hand size returns to 6 (except mid-safety extra turns).
 

@@ -1,4 +1,4 @@
-import { CardCategory, CardId, MatchPhase, MoveKind, getCard, safetyBlocksHazard, safetyForHazard, CARD_DEFS } from './cards'
+import { CardCategory, CardId, MatchPhase, MoveKind, getCard, safetyBlocksHazard, safetyForHazard, CARD_DEFS, MAX_PLAYERS, MIN_PLAYERS } from './cards'
 import {
   battleTop,
   speedTop,
@@ -13,10 +13,12 @@ import {
   playMove,
   discardMove,
   coupMove,
+  drawDeckMove,
+  drawDiscardMove,
 } from './state'
 import type { MatchConfig, MatchState, GameMove, PlayerTableau } from './state'
 
-export { defaultConfig, playMove, discardMove, coupMove }
+export { defaultConfig, playMove, discardMove, coupMove, drawDeckMove, drawDiscardMove }
 export type { MatchState, GameMove, MatchConfig, PlayerTableau }
 
 function mulberry32(seed: number) {
@@ -73,12 +75,53 @@ function drawToHand(state: MatchState, playerIndex: number): void {
   state.players[playerIndex]!.hand.push(state.drawPile.pop()!)
 }
 
+function takeDiscardTop(state: MatchState, playerIndex: number): CardId | 0 {
+  if (!state.discardPile.length) return 0
+  const card = state.discardPile.pop()!
+  state.players[playerIndex]!.hand.push(card)
+  return card
+}
+
+/**
+ * Start-of-turn draw step.
+ * Empty discard → auto-draw from deck (no choice).
+ * Discard has cards → AwaitingDraw (double-click draw pile or discard top).
+ */
+function beginDrawPhase(state: MatchState): void {
+  if (state.phase === MatchPhase.Finished) return
+
+  if (!cardsRemainToDraw(state)) {
+    if (!state.players[state.currentPlayer]!.hand.length) {
+      finishByExhaustion(state)
+      return
+    }
+    state.phase = MatchPhase.Playing
+    return
+  }
+
+  // Reshuffle first so a lone discard recycled into the deck correctly auto-draws.
+  if (!state.drawPile.length) reshuffleDiscardIntoDraw(state)
+
+  if (!state.discardPile.length) {
+    drawToHand(state, state.currentPlayer)
+    state.phase = MatchPhase.Playing
+    if (!state.players[state.currentPlayer]!.hand.length && !cardsRemainToDraw(state)) {
+      finishByExhaustion(state)
+    }
+    return
+  }
+
+  // Discard is face-up — player must choose (deck and/or discard).
+  state.phase = MatchPhase.AwaitingDraw
+}
+
 export function createMatch(
   names: string[],
   humanFlags: boolean[],
   config?: MatchConfig,
 ): MatchState {
-  if (names.length < 2) throw new Error('Need at least 2 players')
+  if (names.length < MIN_PLAYERS) throw new Error(`Need at least ${MIN_PLAYERS} players`)
+  if (names.length > MAX_PLAYERS) throw new Error(`Maximum ${MAX_PLAYERS} players`)
   const cfg = config ?? defaultConfig()
   const rand = mulberry32(cfg.seed || Date.now())
   const drawPile = buildDeck(cfg)
@@ -101,7 +144,11 @@ export function createMatch(
   for (let c = 0; c < cfg.handSize; c++) {
     for (let p = 0; p < state.players.length; p++) drawToHand(state, p)
   }
-  drawToHand(state, 0)
+  // Opening draw: discard empty → auto-draw into Playing (hand becomes 7).
+  beginDrawPhase(state)
+  if (state.phase === MatchPhase.Playing && state.players[0]!.hand.length === cfg.handSize + 1) {
+    state.lastMessage = `${names[0]} starts the road trip.`
+  }
   return state
 }
 
@@ -156,6 +203,15 @@ export function getLegalMoves(state: MatchState): GameMove[] {
     })
     return moves
   }
+
+  if (state.phase === MatchPhase.AwaitingDraw) {
+    const p = state.currentPlayer
+    if (state.drawPile.length) moves.push(drawDeckMove(p))
+    if (state.discardPile.length) moves.push(drawDiscardMove(p))
+    return moves
+  }
+
+  if (state.phase !== MatchPhase.Playing) return moves
 
   const p = state.currentPlayer
   const me = state.players[p]!
@@ -247,10 +303,7 @@ function endTurn(state: MatchState): void {
   )
 
   state.turnNumber++
-  drawToHand(state, state.currentPlayer)
-  if (!state.players[state.currentPlayer]!.hand.length && !cardsRemainToDraw(state)) {
-    finishByExhaustion(state)
-  }
+  beginDrawPhase(state)
 }
 
 export function declineCoupFourre(state: MatchState): { ok: true } | { ok: false; error: string } {
@@ -281,12 +334,33 @@ export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok
     playSafety(state, move.playerIndex, move.card, true)
     state.coupFourreCount++
     state.pending = null
-    state.phase = MatchPhase.Playing
     state.currentPlayer = move.playerIndex
-    drawToHand(state, move.playerIndex)
     state.lastMessage = `${me.displayName} Coup Fourré! ${getCard(move.card).name} counter-thrust!`
+    beginDrawPhase(state)
     return { ok: true }
   }
+
+  if (state.phase === MatchPhase.AwaitingDraw) {
+    if (move.playerIndex !== state.currentPlayer) return { ok: false, error: 'Not your turn to draw.' }
+    if (move.kind === MoveKind.DrawDeck) {
+      if (!state.drawPile.length) reshuffleDiscardIntoDraw(state)
+      if (!state.drawPile.length) return { ok: false, error: 'Draw pile is empty.' }
+      drawToHand(state, move.playerIndex)
+      state.phase = MatchPhase.Playing
+      state.lastMessage = `${state.players[move.playerIndex]!.displayName} drew from the deck.`
+      return { ok: true }
+    }
+    if (move.kind === MoveKind.DrawDiscard) {
+      if (!state.discardPile.length) return { ok: false, error: 'Discard pile is empty.' }
+      const card = takeDiscardTop(state, move.playerIndex)
+      state.phase = MatchPhase.Playing
+      state.lastMessage = `${state.players[move.playerIndex]!.displayName} took ${getCard(card as CardId).name} from discard.`
+      return { ok: true }
+    }
+    return { ok: false, error: 'Double-click the draw pile or discard pile to draw.' }
+  }
+
+  if (state.phase !== MatchPhase.Playing) return { ok: false, error: 'Cannot play right now.' }
 
   if (move.playerIndex !== state.currentPlayer) return { ok: false, error: 'Not your turn.' }
   const me = state.players[move.playerIndex]!
@@ -335,8 +409,8 @@ export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok
     if (hasSafety(me, move.card)) return { ok: false, error: 'Safety already played.' }
     me.hand.splice(move.handIndex, 1)
     playSafety(state, move.playerIndex, move.card, false)
-    drawToHand(state, move.playerIndex)
     state.lastMessage = `${me.displayName} activated ${def.name} and takes another turn!`
+    beginDrawPhase(state)
     return { ok: true }
   }
 

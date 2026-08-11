@@ -5,6 +5,8 @@ import {
   isLegalPlay,
   playMove,
   discardMove,
+  drawDeckMove,
+  drawDiscardMove,
   getLegalMoves,
   getCard,
   MatchPhase,
@@ -120,6 +122,20 @@ function AppInner() {
     bump()
   }
 
+  const drawFromDeck = () => {
+    if (!state || aiThinking) return
+    local?.submit(drawDeckMove(localIndex))
+    peer?.submit(drawDeckMove(localIndex))
+    bump()
+  }
+
+  const drawFromDiscard = () => {
+    if (!state || aiThinking) return
+    local?.submit(drawDiscardMove(localIndex))
+    peer?.submit(drawDiscardMove(localIndex))
+    bump()
+  }
+
   const startLocal = () => {
     local?.destroy()
     const ctrl = startSolo(name, aiCount, difficulty)
@@ -174,8 +190,8 @@ function AppInner() {
               Play <strong>Drive</strong> to start moving, then green <strong>mile cards</strong> toward exactly 1000.
             </li>
             <li>Opponents hit you with red hazards — matching remedies/safeties clear them and put you back on the road (no second Drive needed after a fix).</li>
-            <li>On your turn: double-click a lit card to play, or drag it up onto the table.</li>
-            <li>Drag a card down to discard.</li>
+            <li>On your turn: double-click Draw or Discard to take a card (auto-draws if discard is empty).</li>
+            <li>Then double-click a lit card to play, or drag it up onto the table / down to discard.</li>
           </ol>
           <button className="btn secondary" onClick={() => setScreen('menu')}>
             Back
@@ -195,7 +211,7 @@ function AppInner() {
             <input value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label>
-            AI opponents
+            AI opponents (max 3 — 4 drivers total)
             <select value={aiCount} onChange={(e) => setAiCount(Number(e.target.value))}>
               <option value={1}>1</option>
               <option value={2}>2</option>
@@ -226,6 +242,7 @@ function AppInner() {
       <div className="shell-menu">
         <div className="menu-card">
           <h2>Multiplayer Lobby</h2>
+          <p className="muted">2–4 players. Room fills at 4.</p>
           <label>
             Driver name
             <input value={name} onChange={(e) => setName(e.target.value)} />
@@ -324,6 +341,7 @@ function AppInner() {
   if (!state) return null
 
   const myTurn = state.currentPlayer === localIndex && state.phase === MatchPhase.Playing && !aiThinking
+  const myDraw = state.currentPlayer === localIndex && state.phase === MatchPhase.AwaitingDraw && !aiThinking
   const myCoup = state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === localIndex
 
   let coupBanner: ReactNode = null
@@ -385,11 +403,14 @@ function AppInner() {
       selected={selected}
       target={target}
       myTurn={myTurn}
+      myDraw={myDraw}
       aiThinking={aiThinking}
       onSelectCard={setSelected}
       onPlayIndex={playIndex}
       onDiscardIndex={discardIndex}
       onSelectTarget={setTarget}
+      onDrawDeck={drawFromDeck}
+      onDrawDiscard={drawFromDiscard}
       onMenu={leaveToMenu}
       coupBanner={coupBanner}
       endOverlay={endOverlay}

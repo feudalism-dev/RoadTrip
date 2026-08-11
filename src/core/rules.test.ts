@@ -7,6 +7,8 @@ import {
   tryApply,
   playMove,
   coupMove,
+  drawDeckMove,
+  drawDiscardMove,
 } from './rules'
 import { describe, expect, it } from 'vitest'
 
@@ -69,6 +71,8 @@ describe('RulesEngine', () => {
     expect(state.currentPlayer).toBe(1)
     expect(bob.safeties).toContain(CardId.PunctureProof)
     expect(state.coupFourreCount).toBe(1)
+    // Discard has the cancelled hazard → Bob must choose a pile.
+    expect(state.phase).toBe(MatchPhase.AwaitingDraw)
   })
 
   it('immune player cannot be hit', () => {
@@ -90,10 +94,13 @@ describe('RulesEngine', () => {
     const alice = state.players[0]!
     const before = state.currentPlayer
     alice.hand = [CardId.DrivingAce]
+    state.discardPile = []
     const drawBefore = state.drawPile.length
     expect(tryApply(state, playMove(0, 0, CardId.DrivingAce)).ok).toBe(true)
     expect(state.currentPlayer).toBe(before)
     expect(alice.safeties).toContain(CardId.DrivingAce)
+    // Empty discard → auto-draw for bonus turn.
+    expect(state.phase).toBe(MatchPhase.Playing)
     expect(state.drawPile.length).toBeLessThan(drawBefore)
   })
 
@@ -123,10 +130,24 @@ describe('RulesEngine', () => {
     alice.battlePile = [CardId.Drive]
     bob.hand = []
     expect(tryApply(state, playMove(0, 0, CardId.Miles25)).ok).toBe(true)
-    // Bob had an empty hand; endTurn must reshuffle discards then draw.
     expect(state.currentPlayer).toBe(1)
+    expect(state.phase).toBe(MatchPhase.AwaitingDraw)
+    expect(tryApply(state, drawDeckMove(1)).ok).toBe(true)
     expect(bob.hand.length).toBe(1)
-    expect(state.lastMessage).toMatch(/shuffled/i)
-    expect(state.lastMessage).toMatch(/25 Miles|Alice/i)
+    expect(state.lastMessage).toMatch(/shuffled|drew from the deck/i)
+  })
+
+  it('can take the top discard instead of drawing', () => {
+    const state = createMatch(['Alice', 'Bob'], [true, true], defaultConfig(29))
+    state.phase = MatchPhase.AwaitingDraw
+    state.currentPlayer = 0
+    state.discardPile = [CardId.Drive]
+    state.drawPile = [CardId.Miles25, CardId.Miles50]
+    const before = state.players[0]!.hand.length
+    expect(tryApply(state, drawDiscardMove(0)).ok).toBe(true)
+    expect(state.phase).toBe(MatchPhase.Playing)
+    expect(state.players[0]!.hand.length).toBe(before + 1)
+    expect(state.players[0]!.hand).toContain(CardId.Drive)
+    expect(state.discardPile.length).toBe(0)
   })
 })

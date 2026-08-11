@@ -6,6 +6,7 @@ import {
   type MatchState,
   type GameMove,
 } from '../core/rules'
+import { MAX_PLAYERS, MIN_PLAYERS } from '../core/cards'
 
 export type LobbySeat = { id: string; name: string; ready: boolean; isHost: boolean }
 
@@ -104,9 +105,9 @@ function buildSession(
 
   const onMessage = (fromId: string, msg: Wire) => {
     if (msg.t === 'hello' && isHost) {
-      if (seats.length >= 4) {
+      if (seats.length >= MAX_PLAYERS) {
         const c = conns.get(fromId)
-        if (c) send(c, { t: 'info', message: 'Room full.' })
+        if (c) send(c, { t: 'info', message: `Room full (max ${MAX_PLAYERS} players).` })
         return
       }
       if (!seats.some((s) => s.id === msg.id)) {
@@ -221,8 +222,13 @@ function buildSession(
         notify()
         return
       }
-      if (seats.length < 2) {
-        status = 'Need at least 2 players.'
+      if (seats.length < MIN_PLAYERS) {
+        status = `Need at least ${MIN_PLAYERS} players.`
+        notify()
+        return
+      }
+      if (seats.length > MAX_PLAYERS) {
+        status = `Maximum ${MAX_PLAYERS} players.`
         notify()
         return
       }

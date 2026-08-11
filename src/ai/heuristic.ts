@@ -1,6 +1,6 @@
 import { CardCategory, CardId, MatchPhase, MoveKind, getCard } from '../core/cards'
 import type { GameMove, MatchState } from '../core/state'
-import { cloneState } from '../core/state'
+import { cloneState, battleTop, canDrive, speedLimitActive } from '../core/state'
 import { getLegalMoves, tryApply } from '../core/rules'
 
 export type AiDifficulty = 'easy' | 'normal' | 'hard'
@@ -9,6 +9,10 @@ export function chooseAiMove(state: MatchState, playerIndex: number, difficulty:
   if (state.phase === MatchPhase.AwaitingCoupFourre) {
     const coups = getLegalMoves(state).filter((m) => m.kind === MoveKind.CoupFourre)
     return coups[0] ?? null
+  }
+
+  if (state.phase === MatchPhase.AwaitingDraw) {
+    return chooseAiDraw(state, playerIndex, difficulty)
   }
 
   const legal = getLegalMoves(state)
@@ -32,6 +36,40 @@ export function chooseAiMove(state: MatchState, playerIndex: number, difficulty:
     return plays[Math.floor(Math.random() * plays.length)]!
   }
   return best ?? pickDiscard(state, playerIndex, discards)
+}
+
+function chooseAiDraw(state: MatchState, playerIndex: number, difficulty: AiDifficulty): GameMove | null {
+  const legal = getLegalMoves(state)
+  const fromDeck = legal.find((m) => m.kind === MoveKind.DrawDeck)
+  const fromDiscard = legal.find((m) => m.kind === MoveKind.DrawDiscard)
+  if (fromDiscard && discardTopIsUseful(state, playerIndex)) {
+    if (difficulty === 'easy' && Math.random() < 0.35 && fromDeck) return fromDeck
+    return fromDiscard
+  }
+  return fromDeck ?? fromDiscard ?? null
+}
+
+function discardTopIsUseful(state: MatchState, playerIndex: number): boolean {
+  const top = state.discardPile[state.discardPile.length - 1]
+  if (top === undefined) return false
+  const me = state.players[playerIndex]!
+  const def = getCard(top)
+  if (def.category === CardCategory.Distance) {
+    return canDrive(me) && me.miles + def.miles <= state.config.goalMiles && !(speedLimitActive(me) && def.miles > 50)
+  }
+  if (def.category === CardCategory.Remedy) {
+    if (top === CardId.Drive) {
+      const b = battleTop(me)
+      return b === 0 || b === CardId.RedLight
+    }
+    if (top === CardId.EndOfLimit) return state.players[playerIndex]!.speedPile.slice(-1)[0] === CardId.SpeedLimit
+    return battleTop(me) === def.countersHazard
+  }
+  if (def.category === CardCategory.Safety) return !me.safeties.includes(top)
+  if (def.category === CardCategory.Hazard) {
+    return state.players.some((p, i) => i !== playerIndex && p.miles >= me.miles)
+  }
+  return false
 }
 
 function lookaheadBonus(state: MatchState, move: GameMove): number {

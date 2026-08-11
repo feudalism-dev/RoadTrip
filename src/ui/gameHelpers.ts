@@ -1,4 +1,4 @@
-import { MatchPhase, MoveKind, CardCategory, CardId, getCard, safetyBlocksHazard } from '../core/cards'
+import { MatchPhase, MoveKind, CardCategory, CardId, getCard, safetyBlocksHazard, MAX_PLAYERS } from '../core/cards'
 import {
   createMatch,
   tryApply,
@@ -6,6 +6,8 @@ import {
   declineCoupFourre,
   playMove,
   discardMove,
+  drawDeckMove,
+  drawDiscardMove,
   type MatchState,
   type GameMove,
 } from '../core/rules'
@@ -24,9 +26,11 @@ export type LocalControllers = {
 }
 
 const AI_DELAY_MS = 1100
+const AI_NAMES = ['Cruise Control', 'Night Owl', 'Road Hog'] as const
 
 export function startSolo(name: string, aiCount: number, difficulty: AiDifficulty): LocalControllers {
-  const names = [name || 'You', ...['Cruise Control', 'Night Owl', 'Road Hog'].slice(0, aiCount)]
+  const cappedAi = Math.max(1, Math.min(aiCount, MAX_PLAYERS - 1))
+  const names = [name || 'You', ...AI_NAMES.slice(0, cappedAi)]
   const humans = names.map((_, i) => i === 0)
   let state = createMatch(names, humans)
   const log: string[] = [state.lastMessage]
@@ -79,7 +83,8 @@ export function startSolo(name: string, aiCount: number, difficulty: AiDifficult
           (state.phase === MatchPhase.AwaitingCoupFourre &&
             state.pending &&
             !state.players[state.pending.targetIndex]!.isHuman) ||
-          (state.phase === MatchPhase.Playing && !state.players[state.currentPlayer]!.isHuman)
+          ((state.phase === MatchPhase.Playing || state.phase === MatchPhase.AwaitingDraw) &&
+            !state.players[state.currentPlayer]!.isHuman)
 
         if (!needAi) {
           aiThinking = false
@@ -117,7 +122,13 @@ export function startSolo(name: string, aiCount: number, difficulty: AiDifficult
     },
     submit(move) {
       if (aiThinking) return
-      if (state.currentPlayer !== 0 && state.phase === MatchPhase.Playing) return
+      const cur = state.currentPlayer
+      const myPhase =
+        state.phase === MatchPhase.Playing ||
+        state.phase === MatchPhase.AwaitingDraw ||
+        (state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === 0)
+      if (cur !== 0 && state.phase !== MatchPhase.AwaitingCoupFourre) return
+      if (!myPhase && state.phase !== MatchPhase.AwaitingCoupFourre) return
       const res = tryApply(state, move)
       if (!res.ok) {
         state = { ...state, lastMessage: res.error }
@@ -192,6 +203,10 @@ export function whatShouldIDo(state: MatchState, localIndex: number): string {
 
   if (state.phase === MatchPhase.Finished) return 'The race is over.'
 
+  if (state.phase === MatchPhase.AwaitingDraw && state.currentPlayer === localIndex) {
+    return 'Double-click the Draw pile or the Discard pile to take a card.'
+  }
+
   if (state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === localIndex) {
     return 'You were attacked. Press Counter! if you have the matching Safety, or Take the hit.'
   }
@@ -250,6 +265,10 @@ function remedyNameFor(hazard: CardId): string {
 
 export function turnBanner(state: MatchState, localIndex: number, aiThinking: boolean): string {
   if (state.phase === MatchPhase.Finished) return 'Finished'
+  if (state.phase === MatchPhase.AwaitingDraw) {
+    if (state.currentPlayer === localIndex) return 'YOUR DRAW — double-click a pile'
+    return `${state.players[state.currentPlayer]!.displayName} is drawing…`
+  }
   if (state.phase === MatchPhase.AwaitingCoupFourre && state.pending) {
     const victim = state.players[state.pending.targetIndex]!
     if (state.pending.targetIndex === localIndex) return 'You were attacked — Coup Fourré?'
@@ -261,4 +280,4 @@ export function turnBanner(state: MatchState, localIndex: number, aiThinking: bo
   return 'YOUR TURN'
 }
 
-export { playMove, discardMove, getLegalMoves, getCard, MatchPhase, MoveKind }
+export { playMove, discardMove, drawDeckMove, drawDiscardMove, getLegalMoves, getCard, MatchPhase, MoveKind }

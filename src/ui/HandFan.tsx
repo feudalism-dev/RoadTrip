@@ -62,7 +62,9 @@ export function HandFan({
       <p className="hand-hint">
         {myTurn
           ? 'Double-click a lit card to play · drag up to play · drag down to discard'
-          : 'Waiting for other drivers…'}
+          : disabled
+            ? 'Draw first — double-click the Draw or Discard pile'
+            : 'Waiting for other drivers…'}
       </p>
     </div>
   )

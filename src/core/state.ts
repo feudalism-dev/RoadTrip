@@ -129,6 +129,14 @@ export function coupMove(player: number, handIndex: number, safety: CardId): Gam
   return { kind: MoveKind.CoupFourre, playerIndex: player, handIndex, card: safety, targetPlayerIndex: -1 }
 }
 
+export function drawDeckMove(player: number): GameMove {
+  return { kind: MoveKind.DrawDeck, playerIndex: player, handIndex: -1, card: 0 as CardId, targetPlayerIndex: -1 }
+}
+
+export function drawDiscardMove(player: number): GameMove {
+  return { kind: MoveKind.DrawDiscard, playerIndex: player, handIndex: -1, card: 0 as CardId, targetPlayerIndex: -1 }
+}
+
 export function cloneState(state: MatchState): MatchState {
   return structuredClone(state)
 }

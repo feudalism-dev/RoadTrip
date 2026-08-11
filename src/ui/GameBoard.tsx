@@ -1,4 +1,5 @@
 import type { ReactNode, CSSProperties } from 'react'
+import { MatchPhase } from '../core/cards'
 import type { MatchState } from '../core/rules'
 import { Card } from './Card'
 import { HighwayTracker } from './HighwayTracker'
@@ -15,11 +16,14 @@ type Props = {
   selected: number
   target: number
   myTurn: boolean
+  myDraw: boolean
   aiThinking: boolean
   onSelectCard: (i: number) => void
   onPlayIndex: (i: number) => void
   onDiscardIndex: (i: number) => void
   onSelectTarget: (i: number) => void
+  onDrawDeck: () => void
+  onDrawDiscard: () => void
   onMenu: () => void
   coupBanner?: ReactNode
   endOverlay?: ReactNode
@@ -33,11 +37,14 @@ export function GameBoard({
   selected,
   target,
   myTurn,
+  myDraw,
   aiThinking,
   onSelectCard,
   onPlayIndex,
   onDiscardIndex,
   onSelectTarget,
+  onDrawDeck,
+  onDrawDiscard,
   onMenu,
   coupBanner,
   endOverlay,
@@ -51,6 +58,13 @@ export function GameBoard({
     '--asset-highway': `url(${assets.highway})`,
     '--asset-card-back': `url(${assets.cardBack})`,
   } as CSSProperties
+
+  const drawHint =
+    myDraw
+      ? 'Double-click Draw or Discard to take a card'
+      : state.phase === MatchPhase.AwaitingDraw
+        ? `${state.players[state.currentPlayer]!.displayName} is choosing a pile…`
+        : null
 
   return (
     <div className="table-root" style={boardStyle}>
@@ -82,13 +96,25 @@ export function GameBoard({
           ))}
         </div>
 
-        <div className="center-piles">
-          <div className="pile">
+        <div className={`center-piles ${myDraw ? 'is-drawing' : ''}`}>
+          <div
+            className={`pile ${myDraw && state.drawPile.length ? 'is-hot' : ''}`}
+            onDoubleClick={() => {
+              if (myDraw && state.drawPile.length) onDrawDeck()
+            }}
+            title={myDraw ? 'Double-click to draw from the deck' : undefined}
+          >
             <Card faceDown size="md" />
             <span className="pile-count">{state.drawPile.length}</span>
             <span className="pile-label">Draw</span>
           </div>
-          <div className="pile">
+          <div
+            className={`pile ${myDraw && discardTop !== undefined ? 'is-hot' : ''}`}
+            onDoubleClick={() => {
+              if (myDraw && discardTop !== undefined) onDrawDiscard()
+            }}
+            title={myDraw && discardTop !== undefined ? 'Double-click to take discard' : undefined}
+          >
             {discardTop !== undefined ? (
               <Card id={discardTop} size="md" />
             ) : (
@@ -98,6 +124,7 @@ export function GameBoard({
             <span className="pile-label">Discard</span>
           </div>
         </div>
+        {drawHint && <p className="draw-hint">{drawHint}</p>}
 
         <Tableau state={state} playerIndex={localIndex} localIndex={localIndex} />
       </div>
@@ -107,7 +134,7 @@ export function GameBoard({
         legalIndexes={legalIndexes}
         selected={selected}
         myTurn={myTurn}
-        disabled={aiThinking}
+        disabled={aiThinking || myDraw}
         onSelect={onSelectCard}
         onPlay={onPlayIndex}
         onDiscard={onDiscardIndex}

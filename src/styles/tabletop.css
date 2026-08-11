@@ -381,6 +381,21 @@ select {
   padding: 0.25rem 0;
 }
 
+.center-piles.is-drawing .pile.is-hot {
+  cursor: pointer;
+  animation: legal-glow 1.4s ease-in-out infinite;
+  border-radius: 12px;
+}
+
+.draw-hint {
+  text-align: center;
+  margin: 0.15rem 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gold);
+  text-shadow: 0 1px 2px #000;
+}
+
 .pile {
   position: relative;
   display: flex;
