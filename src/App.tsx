@@ -300,7 +300,9 @@ Watch the Action Log to see what everyone just did.`}</p>
           <span className="turn-sub">Watch the Action Log — each opponent play appears there.</span>
         )}
         {myTurn && (
-          <span className="turn-sub">Select a glowing card, then Play or Discard. One action only.</span>
+          <span className="turn-sub">
+            Bright cards with a <strong>CAN PLAY</strong> tag are legal. Dim cards are not. Click one, then Play or Discard.
+          </span>
         )}
       </div>
 
@@ -381,7 +383,7 @@ Watch the Action Log to see what everyone just did.`}</p>
         <button className="btn red" disabled={!myTurn || selected < 0} onClick={submitDiscard}>Discard selected</button>
       </div>
 
-      <div className="hand">
+      <div className={`hand ${myTurn ? 'choosing' : ''}`}>
         {me.hand.map((card, i) => {
           const def = getCard(card)
           const legal = myTurn && (legalSet.has(i) || isLegalPlay(state, localIndex, i))
@@ -392,6 +394,7 @@ Watch the Action Log to see what everyone just did.`}</p>
               onClick={() => !aiThinking && setSelected(i)}
               disabled={aiThinking}
             >
+              {legal && <span className="playable-tag">CAN PLAY</span>}
               <span className="title">{def.shortName}</span>
               <span className="meta">{def.name}</span>
             </button>

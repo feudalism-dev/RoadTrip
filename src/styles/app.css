@@ -300,8 +300,8 @@ button, input, select {
 }
 
 .card {
-  width: 92px;
-  min-height: 118px;
+  width: 100px;
+  min-height: 128px;
   border-radius: 12px;
   padding: 0.55rem;
   border: 2px solid transparent;
@@ -311,6 +311,8 @@ button, input, select {
   flex-direction: column;
   justify-content: space-between;
   text-align: left;
+  position: relative;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
 }
 
 .card .title { font-weight: 700; font-size: 1.05rem; }
@@ -319,8 +321,49 @@ button, input, select {
 .card.hazard { background: var(--haz); border-color: #ff7359; }
 .card.remedy { background: var(--rem); border-color: #73ff8c; }
 .card.safety { background: var(--saf); border-color: #bfa6ff; }
-.card.legal { box-shadow: 0 0 0 2px var(--amber); }
-.card.selected { outline: 2px solid var(--cyan); }
+
+/* Non-playable cards dim during your turn */
+.hand.choosing .card:not(.legal):not(.selected) {
+  filter: brightness(0.45) saturate(0.7);
+  opacity: 0.75;
+  cursor: default;
+}
+
+.card.legal {
+  border: 4px solid #ffe566;
+  box-shadow:
+    0 0 0 3px rgba(255, 184, 71, 0.95),
+    0 0 22px 6px rgba(255, 200, 80, 0.75),
+    0 8px 18px rgba(0, 0, 0, 0.45);
+  transform: translateY(-6px) scale(1.06);
+  z-index: 2;
+}
+
+.card.legal .playable-tag {
+  display: block;
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffe566;
+  color: #1a1200;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+
+.card .playable-tag { display: none; }
+
+.card.selected {
+  outline: 3px solid var(--cyan);
+  outline-offset: 3px;
+  transform: translateY(-8px) scale(1.08);
+  z-index: 3;
+}
 
 .actions {
   display: grid;
