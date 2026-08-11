@@ -7,6 +7,7 @@ import {
   formatBattle,
   driveStatus,
   speedStatus,
+  turnBanner,
   playMove,
   discardMove,
   getLegalMoves,
@@ -41,12 +42,20 @@ export default function App() {
     return peer.onChange(() => setTick((t) => t + 1))
   }, [peer])
 
+  useEffect(() => {
+    if (!local) return
+    return local.onChange(() => setTick((t) => t + 1))
+  }, [local])
+
   const state: MatchState | null = local?.state ?? peer?.state ?? null
   const localIndex = local?.localIndex ?? peer?.localIndex ?? 0
+  const aiThinking = local?.aiThinking ?? false
+  const actionLog = local?.log ?? (state ? [state.lastMessage] : [])
 
   const bump = () => setTick((t) => t + 1)
 
   const startLocal = () => {
+    local?.destroy()
     const ctrl = startSolo(name, aiCount, difficulty)
     setLocal(ctrl)
     setPeer(null)
@@ -60,6 +69,7 @@ export default function App() {
     setBusy(true)
     try {
       peer?.destroy()
+      local?.destroy()
       const session = await createPeerHost(name)
       setPeer(session)
       setLocal(null)
@@ -76,6 +86,7 @@ export default function App() {
     setBusy(true)
     try {
       peer?.destroy()
+      local?.destroy()
       const session = await joinPeerRoom(roomInput.trim(), name)
       setPeer(session)
       setLocal(null)
@@ -106,36 +117,34 @@ export default function App() {
   }, [state, localIndex, tick])
 
   const submitPlay = () => {
-    if (!state || selected < 0) return
+    if (!state || selected < 0 || aiThinking) return
     const card = state.players[localIndex]!.hand[selected]!
     const def = getCard(card)
     let t = -1
     if (def.category === CardCategory.Hazard) {
       if (target < 0 || target === localIndex) {
-        setStatus('Select an opponent, then Play.')
+        setStatus('First click an opponent card area, then Play.')
         return
       }
       t = target
     }
-    const move = playMove(localIndex, selected, card, t)
-    local?.submit(move)
-    peer?.submit(move)
+    local?.submit(playMove(localIndex, selected, card, t))
+    peer?.submit(playMove(localIndex, selected, card, t))
     setSelected(-1)
     bump()
   }
 
   const submitDiscard = () => {
-    if (!state || selected < 0) return
+    if (!state || selected < 0 || aiThinking) return
     const card = state.players[localIndex]!.hand[selected]!
-    const move = discardMove(localIndex, selected, card)
-    local?.submit(move)
-    peer?.submit(move)
+    local?.submit(discardMove(localIndex, selected, card))
+    peer?.submit(discardMove(localIndex, selected, card))
     setSelected(-1)
     bump()
   }
 
   const doCoup = () => {
-    if (!state) return
+    if (!state || aiThinking) return
     const move = getLegalMoves(state).find((m) => m.kind === MoveKind.CoupFourre)
     if (move) {
       local?.submit(move)
@@ -163,27 +172,28 @@ export default function App() {
   if (screen === 'help') {
     return (
       <div className="app">
-        <div className="panel menu" style={{ maxWidth: 640, textAlign: 'left' }}>
+        <div className="panel menu" style={{ maxWidth: 680, textAlign: 'left' }}>
           <h2 className="brand" style={{ fontSize: '2rem' }}>How to Play</h2>
-          <p className="help">{`OBJECTIVE
-Reach exactly 1000 miles.
+          <p className="help">{`Think of it like a race board:
 
-TURN
-Draw → play or discard one card.
+1. Play a green DRIVE card so you are "moving".
+2. Play MILE cards (25/50/75/100/200) to add distance.
+3. First to exactly 1000 wins (can't go over).
 
-DRIVE
-Need green Drive on your battle pile to play miles
-(Emergency Vehicle can waive Drive).
+Opponents will:
+• Play hazards on YOU to stop your car
+• Drive their own miles when they can
+• Play safeties for permanent protection
 
-HAZARDS
-Stop opponents. Speed Limit caps miles to 25/50.
+On YOUR turn you only do ONE thing:
+• Play one card, OR discard one card
 
-COUP FOURRÉ
-If you hold the matching Safety when attacked,
-counter instantly for a free turn.
+If you are stopped (red status), play the matching remedy,
+then Drive again before more miles.
 
-SAFETIES
-Permanent immunities + extra turn when played.`}</p>
+Glowing cards = legal plays right now.
+Yellow "TURN" on a player = it is their turn.
+Watch the Action Log to see what everyone just did.`}</p>
           <button className="btn amber" onClick={() => setScreen('menu')}>Back</button>
         </div>
       </div>
@@ -259,20 +269,21 @@ Permanent immunities + extra turn when played.`}</p>
   if (!state) return null
 
   const me = state.players[localIndex]!
-  const myTurn = state.currentPlayer === localIndex && state.phase === MatchPhase.Playing
+  const myTurn = state.currentPlayer === localIndex && state.phase === MatchPhase.Playing && !aiThinking
   const myCoup =
     state.phase === MatchPhase.AwaitingCoupFourre &&
     state.pending?.targetIndex === localIndex
+  const banner = turnBanner(state, localIndex, aiThinking)
 
   return (
     <div className="app">
       <div className="topbar">
         <div className="brand" style={{ fontSize: '1.4rem', margin: 0 }}>ROAD TRIP</div>
-        <div className="status">{status}</div>
         <button
           className="btn ghost"
           onClick={() => {
             peer?.destroy()
+            local?.destroy()
             setPeer(null)
             setLocal(null)
             setScreen('menu')
@@ -282,13 +293,23 @@ Permanent immunities + extra turn when played.`}</p>
         </button>
       </div>
 
+      <div className={`turn-banner ${myTurn ? 'yours' : 'theirs'}`}>
+        {banner}
+        {!myTurn && !myCoup && state.phase !== MatchPhase.Finished && (
+          <span className="turn-sub">Watch the Action Log — each opponent play appears there.</span>
+        )}
+        {myTurn && (
+          <span className="turn-sub">Select a glowing card, then Play or Discard. One action only.</span>
+        )}
+      </div>
+
       <div className="route">
         {state.players.map((p, i) => {
           const pct = Math.min(100, (p.miles / state.config.goalMiles) * 100)
           return (
             <div
               key={i}
-              className="car"
+              className={`car ${state.currentPlayer === i ? 'active-car' : ''}`}
               style={{
                 left: `calc(${pct}% - 27px)`,
                 top: 12 + i * 14,
@@ -306,17 +327,19 @@ Permanent immunities + extra turn when played.`}</p>
       <div className="opponents">
         {state.players.map((p, i) => {
           if (i === localIndex) return null
+          const theirTurn = state.currentPlayer === i
           return (
             <button
               key={i}
-              className={`seat ${target === i ? 'selected' : ''} ${state.currentPlayer === i ? 'turn' : ''}`}
+              className={`seat ${target === i ? 'selected' : ''} ${theirTurn ? 'turn' : ''}`}
               onClick={() => setTarget(i)}
             >
+              {theirTurn && <div className="turn-pill">THEIR TURN</div>}
               <strong>{p.displayName}</strong>
               <div>{p.miles} mi</div>
-              <div>Drive: {formatBattle(state, i)}</div>
-              <div>Speed: {speedStatus(state, i)}</div>
-              <div className="muted">{p.safeties.map((s) => getCard(s).shortName).join(', ') || 'no upgrades'}</div>
+              <div>Battle: {formatBattle(state, i)}</div>
+              <div>{speedStatus(state, i)}</div>
+              <div className="muted">{p.safeties.map((s) => getCard(s).shortName).join(', ') || 'no safeties'}</div>
             </button>
           )
         })}
@@ -324,18 +347,30 @@ Permanent immunities + extra turn when played.`}</p>
 
       <div className="grid-2">
         <div className="panel tableau">
-          <strong>{me.displayName}</strong> · {me.miles} / {state.config.goalMiles}
-          {'\n'}Battle: {formatBattle(state, localIndex)}
-          {'\n'}Status: {driveStatus(state, localIndex)}
-          {'\n'}{speedStatus(state, localIndex)}
-          {'\n'}Safeties: {me.safeties.map((s) => getCard(s).shortName).join(', ') || 'None yet'}
-          {'\n'}Draw: {state.drawPile.length} · Discard: {state.discardPile.length}
-          {myTurn ? '\n\nYOUR TURN — pick a glowing card' : ''}
+          <div><strong>You</strong> · {me.miles} / {state.config.goalMiles} miles</div>
+          <div>Battle pile: {formatBattle(state, localIndex)}</div>
+          <div>{driveStatus(state, localIndex)}</div>
+          <div>{speedStatus(state, localIndex)}</div>
+          <div>Safeties: {me.safeties.map((s) => getCard(s).shortName).join(', ') || 'None yet'}</div>
+          <div className="muted">Deck {state.drawPile.length} · Discard {state.discardPile.length}</div>
+          {target >= 0 && target !== localIndex && (
+            <div className="hint">Hazard target: {state.players[target]!.displayName}</div>
+          )}
         </div>
-        <div className="panel actions">
-          <button className="btn green" disabled={!myTurn || selected < 0} onClick={submitPlay}>Play</button>
-          <button className="btn red" disabled={!myTurn || selected < 0} onClick={submitDiscard}>Discard</button>
+
+        <div className="panel log-panel">
+          <strong>Action Log</strong>
+          <ol className="log">
+            {actionLog.map((line, i) => (
+              <li key={`${i}-${line.slice(0, 24)}`} className={i === 0 ? 'latest' : ''}>{line}</li>
+            ))}
+          </ol>
         </div>
+      </div>
+
+      <div className="actions-row">
+        <button className="btn green" disabled={!myTurn || selected < 0} onClick={submitPlay}>Play selected</button>
+        <button className="btn red" disabled={!myTurn || selected < 0} onClick={submitDiscard}>Discard selected</button>
       </div>
 
       <div className="hand">
@@ -344,12 +379,13 @@ Permanent immunities + extra turn when played.`}</p>
           const legal = myTurn && (legalSet.has(i) || isLegalPlay(state, localIndex, i))
           return (
             <button
-              key={`${card}-${i}`}
+              key={`${card}-${i}-${tick}`}
               className={`${cardClass(def.category)}${legal ? ' legal' : ''}${selected === i ? ' selected' : ''}`}
-              onClick={() => setSelected(i)}
+              onClick={() => !aiThinking && setSelected(i)}
+              disabled={aiThinking}
             >
               <span className="title">{def.shortName}</span>
-              <span className="meta">{CardCategory[def.category].toUpperCase()}</span>
+              <span className="meta">{def.name}</span>
             </button>
           )
         })}
@@ -358,11 +394,11 @@ Permanent immunities + extra turn when played.`}</p>
       {myCoup && (
         <div className="banner">
           <div className="panel">
-            <h2>COUP FOURRÉ?</h2>
-            <p className="muted">Counter with your matching safety.</p>
+            <h2>You were hit!</h2>
+            <p className="muted">You hold the matching Safety — Coup Fourré cancels the attack and gives you the turn.</p>
             <div className="stack">
-              <button className="btn green" onClick={doCoup}>Counter!</button>
-              <button className="btn ghost" onClick={() => { local?.declineCoup(); peer?.declineCoup(); bump() }}>Decline</button>
+              <button className="btn green" onClick={doCoup}>Counter! (Coup Fourré)</button>
+              <button className="btn ghost" onClick={() => { local?.declineCoup(); peer?.declineCoup(); bump() }}>Take the hit</button>
             </div>
           </div>
         </div>
@@ -375,7 +411,7 @@ Permanent immunities + extra turn when played.`}</p>
               {state.winnerIndex >= 0 ? state.players[state.winnerIndex]!.displayName : 'Nobody'}
             </h2>
             <p>{state.lastMessage}</p>
-            <button className="btn cyan" onClick={() => { peer?.destroy(); setPeer(null); setLocal(null); setScreen('menu') }}>
+            <button className="btn cyan" onClick={() => { peer?.destroy(); local?.destroy(); setPeer(null); setLocal(null); setScreen('menu') }}>
               Main Menu
             </button>
           </div>
