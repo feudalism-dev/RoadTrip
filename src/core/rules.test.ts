@@ -112,4 +112,21 @@ describe('RulesEngine', () => {
     state.players[1]!.battlePile = [CardId.Gasoline]
     expect(canPlayHazard(state, 0, 1, CardId.FlatTire)).toBe(true)
   })
+
+  it('reshuffles discard into draw when draw pile is empty', () => {
+    const state = createMatch(['Alice', 'Bob'], [true, true], defaultConfig(27))
+    const alice = state.players[0]!
+    const bob = state.players[1]!
+    state.drawPile = []
+    state.discardPile = [CardId.Miles25, CardId.Miles50, CardId.Drive, CardId.Miles100]
+    alice.hand = [CardId.Miles25]
+    alice.battlePile = [CardId.Drive]
+    bob.hand = []
+    expect(tryApply(state, playMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    // Bob had an empty hand; endTurn must reshuffle discards then draw.
+    expect(state.currentPlayer).toBe(1)
+    expect(bob.hand.length).toBe(1)
+    expect(state.lastMessage).toMatch(/shuffled/i)
+    expect(state.lastMessage).toMatch(/25 Miles|Alice/i)
+  })
 })

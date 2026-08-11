@@ -10,6 +10,8 @@ First to exactly **1000** miles wins. Cannot overshoot. Max **two** 200-mile car
 2. Play one card **or** discard one.
 3. Hand size returns to 6 (except mid-safety extra turns).
 
+**House rule:** if the draw pile runs out, shuffle the discard pile back into the draw pile (the top discard stays face-up when there are 2+ cards). The race only ends on exhaustion when there are truly no cards left to recycle and nobody has a hand.
+
 ## Drive
 
 Miles require you to be **moving**: **Drive** (or any battle remedy after a fix) on top of your battle pile, unless **Emergency Vehicle** is active with an empty battle pile.

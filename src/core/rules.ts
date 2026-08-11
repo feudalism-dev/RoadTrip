@@ -45,7 +45,30 @@ function buildDeck(config: MatchConfig): CardId[] {
   return deck
 }
 
+/** When the draw pile is empty, recycle the discard pile (leave the top discard face-up if possible). */
+function reshuffleDiscardIntoDraw(state: MatchState): boolean {
+  if (state.drawPile.length > 0) return false
+  if (state.discardPile.length === 0) return false
+
+  let kept: CardId | 0 = 0
+  if (state.discardPile.length >= 2) {
+    kept = state.discardPile.pop()!
+  }
+  const recycled = state.discardPile.splice(0, state.discardPile.length)
+  if (kept !== 0) state.discardPile.push(kept)
+
+  if (!recycled.length) return false
+
+  const rand = mulberry32((state.config.seed || 1) + state.turnNumber * 997 + recycled.length * 13)
+  shuffle(recycled, rand)
+  state.drawPile.push(...recycled)
+  const note = `Draw pile empty — shuffled ${recycled.length} discard(s) back into the deck.`
+  state.lastMessage = state.lastMessage ? `${state.lastMessage} ${note}` : note
+  return true
+}
+
 function drawToHand(state: MatchState, playerIndex: number): void {
+  if (!state.drawPile.length) reshuffleDiscardIntoDraw(state)
   if (!state.drawPile.length) return
   state.players[playerIndex]!.hand.push(state.drawPile.pop()!)
 }
@@ -198,13 +221,17 @@ function finishByExhaustion(state: MatchState): void {
     }
   })
   state.winnerIndex = best
-  state.lastMessage = `Deck exhausted. ${state.players[best]!.displayName} leads with ${bestMiles} miles.`
+  state.lastMessage = `No cards left to draw. ${state.players[best]!.displayName} leads with ${bestMiles} miles.`
+}
+
+function cardsRemainToDraw(state: MatchState): boolean {
+  return state.drawPile.length > 0 || state.discardPile.length > 0
 }
 
 function endTurn(state: MatchState): void {
   if (state.phase === MatchPhase.Finished) return
   const handsEmpty = state.players.every((p) => p.hand.length === 0)
-  if (!state.drawPile.length && handsEmpty) {
+  if (!cardsRemainToDraw(state) && handsEmpty) {
     finishByExhaustion(state)
     return
   }
@@ -215,13 +242,13 @@ function endTurn(state: MatchState): void {
     guard++
   } while (
     state.players[state.currentPlayer]!.hand.length === 0 &&
-    !state.drawPile.length &&
+    !cardsRemainToDraw(state) &&
     guard < state.players.length + 1
   )
 
   state.turnNumber++
   drawToHand(state, state.currentPlayer)
-  if (!state.players[state.currentPlayer]!.hand.length && !state.drawPile.length) {
+  if (!state.players[state.currentPlayer]!.hand.length && !cardsRemainToDraw(state)) {
     finishByExhaustion(state)
   }
 }
