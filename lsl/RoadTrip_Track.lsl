@@ -45,6 +45,7 @@ list CAR_LANE_X = [0.44653, 0.14680, -0.14484, -0.45563];
 
 float ATTRACT_SEC = 6.0;
 float GAME_OVER_HOLD_SEC = 5.0;
+float HAZARD_HOLD_SEC = 3.0;
 
 // Inventory texture names = slug only (no date, no v4_, no .png).
 // Upload from assets/table_screens_upload/<slug>.png — inventory name = <slug>
@@ -55,6 +56,7 @@ float GAME_OVER_HOLD_SEC = 5.0;
 integer TIMER_OFF = 0;
 integer TIMER_ATTRACT = 1;
 integer TIMER_GAME_OVER = 2;
+integer TIMER_HAZARD_HOLD = 3;
 
 integer gScreensLink = 0;
 list gCarLinks = [0, 0, 0, 0];
@@ -64,6 +66,7 @@ integer gInMatch = FALSE;
 integer gAttractOn = FALSE;
 integer gAttractSet = 0; // 0 = panorama A, 1 = panorama B
 integer gTimerMode = 0;
+integer gPendingTurnPlayer = 0;
 integer DEBUG = FALSE;
 
 integer debug(string m)
@@ -281,6 +284,7 @@ doFullReset()
     stopAttract();
     gInMatch = FALSE;
     gSeatInMatch = [FALSE, FALSE, FALSE, FALSE];
+    gPendingTurnPlayer = 0;
     gTimerMode = TIMER_OFF;
     llSetTimerEvent(0.0);
     snapAllCarsToStart();
@@ -420,6 +424,26 @@ handleGameOver(integer first, integer second, integer third, integer fourth)
         + "," + (string)third + "," + (string)fourth);
 }
 
+applyTurnChange(integer currentPlayer)
+{
+    integer p;
+    for (p = 1; p <= MAX_LANES; p++)
+    {
+        if (!llList2Integer(gSeatInMatch, p - 1)) jump cont;
+        if (p == currentPlayer)
+        {
+            setFaceTexture(p, "status-your-turn");
+        }
+        else
+        {
+            // Not driving — WAITING (covers discard handoff + hazard aftermath).
+            setFaceTexture(p, "status-waiting");
+        }
+        @cont;
+    }
+    debug("TURN_CHANGE player=" + (string)currentPlayer);
+}
+
 handleEventPipe(string payload)
 {
     list parts = llParseStringKeepNulls(payload, ["|"], []);
@@ -493,6 +517,13 @@ handleEventPipe(string payload)
         {
             setFaceTexture(act, hazardPlayKey(card));
         }
+        // Hold before YOUR TURN so victim/attacker can read the hazard splash.
+        if (gTimerMode != TIMER_GAME_OVER)
+        {
+            gPendingTurnPlayer = 0;
+            gTimerMode = TIMER_HAZARD_HOLD;
+            llSetTimerEvent(HAZARD_HOLD_SEC);
+        }
         return;
     }
 
@@ -507,10 +538,14 @@ handleEventPipe(string payload)
 
     if (ev == "TURN_CHANGE")
     {
-        if (playerNum >= 1 && playerNum <= MAX_LANES)
+        if (playerNum < 1 || playerNum > MAX_LANES) return;
+        // Defer while hazard splash is showing.
+        if (gTimerMode == TIMER_HAZARD_HOLD)
         {
-            setFaceTexture(playerNum, "status-your-turn");
+            gPendingTurnPlayer = playerNum;
+            return;
         }
+        applyTurnChange(playerNum);
         return;
     }
 
@@ -537,6 +572,7 @@ handleStart(string seatCsv)
 {
     stopAttract();
     gTimerMode = TIMER_OFF;
+    gPendingTurnPlayer = 0;
     llSetTimerEvent(0.0);
 
     parseStartSeats(seatCsv);
@@ -638,6 +674,15 @@ default
         if (gTimerMode == TIMER_GAME_OVER)
         {
             finishGameOverHold();
+            return;
+        }
+        if (gTimerMode == TIMER_HAZARD_HOLD)
+        {
+            integer pending = gPendingTurnPlayer;
+            gPendingTurnPlayer = 0;
+            gTimerMode = TIMER_OFF;
+            llSetTimerEvent(0.0);
+            if (pending >= 1) applyTurnChange(pending);
             return;
         }
         llSetTimerEvent(0.0);

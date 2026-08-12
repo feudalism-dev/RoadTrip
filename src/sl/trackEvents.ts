@@ -184,7 +184,8 @@ export function payloadsFromState(prev: MatchState | null, next: MatchState): st
 
 /**
  * Emit track events for a state transition. No-ops for guests / missing cap.
- * Fire-and-forget JSONP; errors are swallowed so play is never blocked.
+ * Events are sent sequentially; after a HAZARD we pause so HIT/PLAY screens
+ * are visible before TURN_CHANGE overwrites them.
  */
 export function emitFromState(
   prev: MatchState | null,
@@ -193,9 +194,27 @@ export function emitFromState(
 ): void {
   if (!opts.isEmitter || !opts.slCap || !opts.uid) return
   const payloads = payloadsFromState(prev, next)
-  for (const p of payloads) {
-    void tableEvent(opts.slCap, opts.uid, opts.localSeat, p).catch(() => {
-      /* ignore — MOAP / cap blips */
-    })
-  }
+  if (!payloads.length) return
+
+  void (async () => {
+    let pauseAfterHazard = false
+    for (const p of payloads) {
+      if (pauseAfterHazard) {
+        await sleep(HAZARD_SCREEN_HOLD_MS)
+        pauseAfterHazard = false
+      }
+      try {
+        await tableEvent(opts.slCap, opts.uid, opts.localSeat, p)
+      } catch {
+        /* ignore — MOAP / cap blips */
+      }
+      if (p.startsWith('HAZARD|')) pauseAfterHazard = true
+    }
+  })()
+}
+
+const HAZARD_SCREEN_HOLD_MS = 2800
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
