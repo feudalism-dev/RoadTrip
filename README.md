@@ -40,5 +40,18 @@ Site: `https://<you>.github.io/RoadTrip/`
 
 - [RULES.md](Docs/RULES.md)
 - [DESIGN.md](Docs/DESIGN.md)
+- [SECOND_LIFE.md](Docs/SECOND_LIFE.md) — MOAP HUD, table lock, Active / Create / Join
+- [TABLE_SCREEN_ASSETS.md](Docs/TABLE_SCREEN_ASSETS.md) — in-world screen textures + Comfy prompts
 - [ASSETS.md](Docs/ASSETS.md) — ComfyUI-generated tabletop art
 - [DEFERRED.md](Docs/DEFERRED.md)
+
+## Second Life (in-world)
+
+1. Put `lsl/RoadTrip_Table.lsl` on the game table (with AVsitter; seats 0–3). Compile with your **Experience**.
+2. Put `lsl/RoadTrip_Track.lsl` on the Track sibling prim (`car1`–`car4` + `screens`).
+3. Upload all **50** PNGs from `assets/table_screens_upload/` into the **Track** prim inventory — keep inventory names = filename without `.png`.
+4. Build HUD object named **`RoadTrip HUD`** (square, media face **4**), put `lsl/RoadTrip_HUD.lsl` in it (same Experience), then put that object in the **table** inventory.
+5. Whitelist `feudalism-dev.github.io` for media; bump `HUD_PAGE_ASSET_REV` after Pages deploys.
+6. Sit → table rezzes/attaches HUD → click **Enter Table** in MOAP.
+
+Details: [Docs/SECOND_LIFE.md](Docs/SECOND_LIFE.md) · textures: [Docs/TABLE_SCREEN_ASSETS.md](Docs/TABLE_SCREEN_ASSETS.md).

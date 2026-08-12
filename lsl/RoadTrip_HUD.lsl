@@ -1,0 +1,461 @@
+// Road Trip — HUD Bootloader
+// Put this script ONLY in the HUD object in the table inventory ("RoadTrip HUD").
+// Table rezzes it on sit; this script Experience-temp-attaches, then loads MoAP.
+// Compile: Mono + same Experience as the table. See Docs/SECOND_LIFE.md
+
+integer USE_DEV = FALSE;
+string WEB_URL_PROD = "https://feudalism-dev.github.io/RoadTrip/";
+string WEB_URL_DEV = "https://feudalism-dev.github.io/RoadTrip/";
+// Bump when GitHub Pages deploys so MoAP reloads.
+integer HUD_PAGE_ASSET_REV = 2;
+
+integer HUD_FACE = 4;
+integer HUD_MEDIA_PIXELS = 1024;
+integer ATTACH_WAIT_SEC = 90;
+integer DEBUG = FALSE;
+
+integer gHsChan = 0;
+integer gHsListen = 0;
+integer gCmdListen = 0;
+integer gTableListen = 0;
+
+key gWearer = NULL_KEY;
+key gTargetAvatar = NULL_KEY;
+string gTableId = "";
+integer gSeat = -1;
+string gSlCap = "";
+string gNameHint = "";
+
+integer gPendingAttach = FALSE;
+integer gPendingDetach = FALSE;
+integer gMoapPending = FALSE;
+integer gResyncLeft = 0;
+string gLastHomeUrl = "";
+integer gHelloTicks = 0;
+
+integer debug(string m)
+{
+    if (DEBUG) llOwnerSay("RT HUD: " + m);
+    return TRUE;
+}
+
+integer commandChannel(key av)
+{
+    return (integer)("0x" + llGetSubString((string)av, -8, -1)) * -1;
+}
+
+integer tableChannelFromId(string tableId)
+{
+    if (tableId == "") return 0;
+    return (integer)("0x" + llGetSubString(tableId, 0, 7)) * -1;
+}
+
+string webBase()
+{
+    if (USE_DEV) return WEB_URL_DEV;
+    return WEB_URL_PROD;
+}
+
+integer clearListens()
+{
+    if (gHsListen)
+    {
+        llListenRemove(gHsListen);
+        gHsListen = 0;
+    }
+    if (gCmdListen)
+    {
+        llListenRemove(gCmdListen);
+        gCmdListen = 0;
+    }
+    if (gTableListen)
+    {
+        llListenRemove(gTableListen);
+        gTableListen = 0;
+    }
+    return TRUE;
+}
+
+integer dropHsListen()
+{
+    if (gHsListen)
+    {
+        llListenRemove(gHsListen);
+        gHsListen = 0;
+    }
+    return TRUE;
+}
+
+integer sayHello()
+{
+    if (gWearer == NULL_KEY) return FALSE;
+    if (gTableId == "") return FALSE;
+    integer ch = tableChannelFromId(gTableId);
+    if (ch == 0) return FALSE;
+    llRegionSay(ch, "RT_HELLO|" + (string)gWearer);
+    return TRUE;
+}
+
+integer applyMoap(integer force)
+{
+    if (gWearer == NULL_KEY) return FALSE;
+    if (gTableId == "")
+    {
+        debug("No tableId yet — waiting for RT_READY");
+        return FALSE;
+    }
+    // Track events need HTTP-IN; don't paint a dead session without sl_cap.
+    if (gSlCap == "")
+    {
+        gMoapPending = TRUE;
+        debug("No sl_cap yet — waiting for table HTTP-IN URL");
+        return FALSE;
+    }
+
+    string base = webBase();
+    string home = base
+        + "?tableId=" + llEscapeURL(gTableId)
+        + "&seat=" + (string)gSeat
+        + "&uid=" + llEscapeURL((string)gWearer)
+        + "&name=" + llEscapeURL(gNameHint)
+        + "&rev=" + (string)HUD_PAGE_ASSET_REV;
+    home += "&sl_cap=" + llEscapeURL(gSlCap);
+
+    // Skip clear/set when session params unchanged (avoids MoAP thrash).
+    if (!force && home == gLastHomeUrl) return FALSE;
+
+    string bust = (string)llGetUnixTime();
+    string cur = home + "&cb=" + bust;
+
+    debug("MoAP " + llGetSubString(cur, 0, 180));
+
+    // Only clear when URL actually changes — ClearPrimMedia every tick blanked the viewer.
+    list existing = llGetLinkMedia(LINK_THIS, HUD_FACE, [PRIM_MEDIA_CURRENT_URL]);
+    if (llList2String(existing, 0) != cur)
+    {
+        llClearPrimMedia(HUD_FACE);
+    }
+    llSetPrimMediaParams(HUD_FACE, [
+        PRIM_MEDIA_AUTO_PLAY, TRUE,
+        PRIM_MEDIA_CONTROLS, PRIM_MEDIA_CONTROLS_MINI,
+        PRIM_MEDIA_CURRENT_URL, cur,
+        PRIM_MEDIA_HOME_URL, home,
+        PRIM_MEDIA_FIRST_CLICK_INTERACT, TRUE,
+        PRIM_MEDIA_WIDTH_PIXELS, HUD_MEDIA_PIXELS,
+        PRIM_MEDIA_HEIGHT_PIXELS, HUD_MEDIA_PIXELS,
+        PRIM_MEDIA_PERMS_CONTROL, PRIM_MEDIA_PERM_OWNER,
+        PRIM_MEDIA_PERMS_INTERACT, PRIM_MEDIA_PERM_OWNER
+    ]);
+    gLastHomeUrl = home;
+    return TRUE;
+}
+
+integer storeReadyFields(string msg)
+{
+    // RT_READY|tableId|seat|uid|slCap|displayName
+    // Returns TRUE if session fields changed (MoAP should reload).
+    list p = llParseStringKeepNulls(msg, ["|"], []);
+    if (llList2String(p, 0) != "RT_READY") return FALSE;
+    string tableId = llList2String(p, 1);
+    integer seat = (integer)llList2String(p, 2);
+    key uid = (key)llList2String(p, 3);
+    string cap = llList2String(p, 4);
+    string nm = llList2String(p, 5);
+
+    integer dirty = FALSE;
+    if (uid != NULL_KEY && uid != gTargetAvatar)
+    {
+        gTargetAvatar = uid;
+        dirty = TRUE;
+    }
+    if (tableId != "" && tableId != gTableId)
+    {
+        gTableId = tableId;
+        dirty = TRUE;
+        if (gTableListen)
+        {
+            llListenRemove(gTableListen);
+            gTableListen = 0;
+        }
+        integer tch = tableChannelFromId(gTableId);
+        if (tch != 0) gTableListen = llListen(tch, "", NULL_KEY, "");
+    }
+    if (seat != gSeat)
+    {
+        gSeat = seat;
+        dirty = TRUE;
+    }
+    if (cap != "" && cap != gSlCap)
+    {
+        gSlCap = cap;
+        dirty = TRUE;
+    }
+    if (nm != "" && nm != gNameHint)
+    {
+        gNameHint = nm;
+        dirty = TRUE;
+    }
+    return dirty;
+}
+
+integer handleReadyWhileWorn(string msg)
+{
+    integer dirty = storeReadyFields(msg);
+    if (gWearer == NULL_KEY) gWearer = llGetOwner();
+    if (gTargetAvatar != NULL_KEY && gWearer != gTargetAvatar)
+    {
+        debug("RT_READY uid mismatch — ignore");
+        return FALSE;
+    }
+    gMoapPending = FALSE;
+    // First load or real param change only — ignore periodic identical READY.
+    if (dirty || gLastHomeUrl == "") applyMoap(TRUE);
+    return TRUE;
+}
+
+integer beginAttachFromHandshake(string msg)
+{
+    storeReadyFields(msg);
+    if (gTargetAvatar == NULL_KEY) return FALSE;
+
+    // Already on the right avatar (manual wear / re-handshake).
+    if (llGetAttached() && llGetOwner() == gTargetAvatar)
+    {
+        gPendingAttach = FALSE;
+        gWearer = gTargetAvatar;
+        dropHsListen();
+        applyMoap(TRUE);
+        return TRUE;
+    }
+
+    gPendingAttach = TRUE;
+    llSetTimerEvent((float)ATTACH_WAIT_SEC);
+    llRequestExperiencePermissions(gTargetAvatar, "");
+    return TRUE;
+}
+
+integer initiateDetach()
+{
+    if (gPendingDetach) return TRUE;
+    gPendingDetach = TRUE;
+    gPendingAttach = FALSE;
+    llSetTimerEvent(0.0);
+    llClearPrimMedia(HUD_FACE);
+    llRequestExperiencePermissions(llGetOwner(), "");
+    return TRUE;
+}
+
+default
+{
+    state_entry()
+    {
+        // Manual wear fallback (already attached from inventory).
+        if (llGetAttached())
+        {
+            gWearer = llGetOwner();
+            gTargetAvatar = gWearer;
+            gCmdListen = llListen(commandChannel(gWearer), "", NULL_KEY, "");
+            gMoapPending = TRUE;
+            llSetTimerEvent(3.0);
+            llOwnerSay("Road Trip HUD: waiting for table handshake…");
+        }
+        else
+        {
+            llSetLinkAlpha(LINK_SET, 0.0, ALL_SIDES);
+        }
+    }
+
+    on_rez(integer startParam)
+    {
+        if (startParam == 0)
+        {
+            if (!llGetAttached()) llResetScript();
+            return;
+        }
+        clearListens();
+        gHsChan = startParam;
+        gPendingAttach = FALSE;
+        gPendingDetach = FALSE;
+        gTableId = "";
+        gSeat = -1;
+        gSlCap = "";
+        gNameHint = "";
+        gTargetAvatar = NULL_KEY;
+        gLastHomeUrl = "";
+        gHelloTicks = 0;
+        gResyncLeft = 0;
+        gHsListen = llListen(gHsChan, "", NULL_KEY, "");
+        llSetPrimitiveParams([PRIM_TEMP_ON_REZ, TRUE]);
+        llSetLinkAlpha(LINK_SET, 0.0, ALL_SIDES);
+        llSetTimerEvent((float)ATTACH_WAIT_SEC);
+        debug("rezzed; listening handshake ch=" + (string)gHsChan);
+    }
+
+    listen(integer channel, string name, key id, string msg)
+    {
+        if (llGetSubString(msg, 0, 8) == "RT_DETACH")
+        {
+            list p = llParseStringKeepNulls(msg, ["|"], []);
+            string tid = llList2String(p, 1);
+            if (tid != "" && gTableId != "" && tid != gTableId) return;
+            llOwnerSay("Left the Road Trip table.");
+            initiateDetach();
+            return;
+        }
+
+        if (llGetSubString(msg, 0, 7) != "RT_READY") return;
+
+        // Rez handshake channel (before / during attach).
+        if (gHsListen && channel == gHsChan)
+        {
+            beginAttachFromHandshake(msg);
+            return;
+        }
+
+        // Command / table channel while worn.
+        if (llGetAttached()) handleReadyWhileWorn(msg);
+    }
+
+    experience_permissions(key avId)
+    {
+        if (gPendingDetach)
+        {
+            llDetachFromAvatar();
+            gPendingDetach = FALSE;
+            return;
+        }
+        if (!gPendingAttach) return;
+        if (avId != gTargetAvatar) return;
+        llAttachToAvatarTemp(0);
+    }
+
+    experience_permissions_denied(key avId, integer reason)
+    {
+        if (gPendingDetach)
+        {
+            llRequestPermissions(llGetOwner(), PERMISSION_ATTACH);
+            return;
+        }
+        if (!gPendingAttach) return;
+        llRegionSayTo(avId, 0, "Road Trip HUD auto-attach failed. Please accept attachment permissions.");
+        llRequestPermissions(avId, PERMISSION_ATTACH);
+        debug("Experience denied reason=" + (string)reason);
+    }
+
+    run_time_permissions(integer perm)
+    {
+        if (gPendingDetach)
+        {
+            if (perm & PERMISSION_ATTACH) llDetachFromAvatar();
+            gPendingDetach = FALSE;
+            return;
+        }
+        if (!gPendingAttach) return;
+        if (perm & PERMISSION_ATTACH)
+        {
+            llAttachToAvatarTemp(0);
+        }
+        else
+        {
+            llRegionSayTo(gTargetAvatar, 0, "Road Trip HUD permission denied — stand and sit again.");
+            llDie();
+        }
+    }
+
+    attach(key id)
+    {
+        if (id == NULL_KEY)
+        {
+            clearListens();
+            gWearer = NULL_KEY;
+            gPendingAttach = FALSE;
+            gPendingDetach = FALSE;
+            llDie();
+            return;
+        }
+
+        gPendingAttach = FALSE;
+        if (gTargetAvatar == NULL_KEY) gTargetAvatar = id;
+        if (gTargetAvatar != NULL_KEY && id != gTargetAvatar)
+        {
+            llOwnerSay("Road Trip HUD: wrong wearer — removing.");
+            llDie();
+            return;
+        }
+
+        gWearer = id;
+        llSetLinkAlpha(LINK_SET, 1.0, ALL_SIDES);
+        if (gCmdListen) llListenRemove(gCmdListen);
+        gCmdListen = llListen(commandChannel(gWearer), "", NULL_KEY, "");
+        dropHsListen();
+        llSetTimerEvent(3.0);
+        gHelloTicks = 0;
+        llOwnerSay("Road Trip HUD attached — click Enter Table when ready.");
+        if (gTableId != "")
+        {
+            applyMoap(TRUE);
+            gResyncLeft = 1;
+            sayHello();
+        }
+        else
+        {
+            gMoapPending = TRUE;
+        }
+    }
+
+    timer()
+    {
+        if (gPendingAttach && llGetAttached() == 0)
+        {
+            llRegionSayTo(gTargetAvatar, 0, "Road Trip HUD attach timed out. Stand and sit again.");
+            llDie();
+            return;
+        }
+
+        if (gWearer == NULL_KEY || !llGetAttached())
+        {
+            llSetTimerEvent(0.0);
+            return;
+        }
+
+        // Keep trying hello until we have sl_cap + MoAP, then a few extras.
+        if (gSlCap == "" || gLastHomeUrl == "")
+        {
+            if (gTableId != "") sayHello();
+            llSetTimerEvent(2.0);
+        }
+        else if (gHelloTicks < 3)
+        {
+            gHelloTicks++;
+            sayHello();
+            llSetTimerEvent(3.0);
+        }
+        else
+        {
+            llSetTimerEvent(30.0);
+        }
+
+        if (gMoapPending && gTableId != "" && gSlCap != "")
+        {
+            gMoapPending = FALSE;
+            applyMoap(TRUE);
+            gResyncLeft = 1;
+        }
+        // Exactly one CEF resync after first paint — never re-arms.
+        if (gResyncLeft > 0 && gTableId != "")
+        {
+            gResyncLeft = 0;
+            applyMoap(TRUE);
+        }
+    }
+
+    changed(integer change)
+    {
+        if (change & (CHANGED_REGION | CHANGED_TELEPORT))
+        {
+            llClearPrimMedia(HUD_FACE);
+            llOwnerSay("Region change — Road Trip HUD detaching.");
+            initiateDetach();
+        }
+    }
+}

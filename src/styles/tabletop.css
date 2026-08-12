@@ -153,6 +153,31 @@ select {
   border: 1px solid rgba(244, 236, 216, 0.28);
 }
 
+.sl-meta {
+  font-size: 0.78rem;
+  opacity: 0.85;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.sl-roster {
+  text-align: left;
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.sl-mp-panel {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sl-error {
+  color: #fca5a5;
+  font-size: 0.85rem;
+}
+
 .btn:not(:disabled):hover {
   transform: translateY(-1px);
 }
@@ -372,6 +397,7 @@ select {
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: center;
+  padding-top: 0.55rem; /* turn flags sit on the top edge */
 }
 
 /* Piles + hint share one board-mid row so YOUR TURN doesn't jump when draw mode toggles. */
@@ -449,6 +475,7 @@ select {
   min-width: min(100%, 320px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: visible;
 }
 
 .tableau-board.is-mine {
@@ -473,6 +500,7 @@ select {
 
 .tableau-board.is-turn {
   box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35), 0 8px 24px rgba(0, 0, 0, 0.25);
+  padding-top: 1.05rem;
 }
 
 .tableau-head {
@@ -515,9 +543,10 @@ select {
 
 .tableau-turn-flag {
   position: absolute;
-  top: -10px;
+  top: 0;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
+  z-index: 3;
   background: var(--legal);
   color: #052e16;
   font-size: 0.65rem;
@@ -527,6 +556,7 @@ select {
   padding: 0.2rem 0.65rem;
   border-radius: 999px;
   box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+  white-space: nowrap;
 }
 
 .hazard-callout {
@@ -714,7 +744,17 @@ select {
     0 8px 16px rgba(0, 0, 0, 0.28);
   overflow: hidden;
   user-select: none;
-  -webkit-user-drag: element;
+  -webkit-user-drag: none;
+  touch-action: manipulation;
+}
+
+.pcard.is-slideable {
+  touch-action: none;
+  cursor: grab;
+}
+
+.pcard.is-slideable:active {
+  cursor: grabbing;
 }
 
 .pcard-sm {

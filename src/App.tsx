@@ -19,8 +19,13 @@ import { CardCategory } from './core/cards'
 import type { MatchState } from './core/rules'
 import { GameBoard } from './ui/GameBoard'
 import { ToastManager, useToasts } from './ui/ToastManager'
+import { readSlBootstrap } from './sl/bootstrap'
+import { tableEndGame } from './sl/tableApi'
+import { emitFromState } from './sl/trackEvents'
+import { cloneState } from './core/state'
+import { SlTableScreens } from './ui/SlTableScreens'
 
-type Screen = 'menu' | 'soloSetup' | 'lobby' | 'game' | 'help'
+type Screen = 'menu' | 'soloSetup' | 'lobby' | 'game' | 'help' | 'sl'
 
 export default function App() {
   return (
@@ -32,8 +37,9 @@ export default function App() {
 
 function AppInner() {
   const { push } = useToasts()
-  const [screen, setScreen] = useState<Screen>('menu')
-  const [name, setName] = useState('You')
+  const slBoot = useMemo(() => readSlBootstrap(), [])
+  const [screen, setScreen] = useState<Screen>(slBoot ? 'sl' : 'menu')
+  const [name, setName] = useState(slBoot?.name || 'You')
   const [aiCount, setAiCount] = useState(1)
   const [difficulty, setDifficulty] = useState<AiDifficulty>('normal')
   const [roomInput, setRoomInput] = useState('')
@@ -45,6 +51,8 @@ function AppInner() {
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
   const lastToast = useRef('')
+  const slMatchKind = useRef<'none' | 'solo' | 'mp'>('none')
+  const prevMatchRef = useRef<MatchState | null>(null)
 
   useEffect(() => {
     if (!peer) return
@@ -63,8 +71,28 @@ function AppInner() {
 
   const bump = () => setTick((t) => t + 1)
 
+  // Solo client or PeerJS host → physical track events (guests never emit)
   useEffect(() => {
-    if (peer?.state && screen === 'lobby') setScreen('game')
+    if (!state) return
+    if (!slBoot?.slCap) return
+    const isEmitter = Boolean(local) || peer?.isHost === true
+    emitFromState(prevMatchRef.current, state, {
+      slCap: slBoot.slCap,
+      uid: slBoot.uid,
+      localSeat: slBoot.seat,
+      isEmitter,
+    })
+    prevMatchRef.current = cloneState(state)
+  }, [tick, state, local, peer, slBoot])
+
+  useEffect(() => {
+    if (!slBoot || slBoot.slCap) return
+    if (!state) return
+    push('Table link missing (sl_cap) — in-world cars/screens will not move this session.')
+  }, [slBoot, state, push])
+
+  useEffect(() => {
+    if (peer?.state && (screen === 'lobby' || screen === 'sl')) setScreen('game')
   }, [peer?.state, screen, tick])
 
   useEffect(() => {
@@ -87,6 +115,15 @@ function AppInner() {
     })
     return set
   }, [state, localIndex, tick])
+
+  const releaseSlTable = async () => {
+    if (!slBoot?.slCap) return
+    try {
+      await tableEndGame(slBoot.slCap, slBoot.uid, slBoot.seat)
+    } catch {
+      /* ignore */
+    }
+  }
 
   const playIndex = (handIndex: number) => {
     if (!state || aiThinking) return
@@ -136,24 +173,80 @@ function AppInner() {
     bump()
   }
 
-  const startLocal = () => {
+  const startLocal = async () => {
     local?.destroy()
+    peer?.destroy()
     const ctrl = startSolo(name, aiCount, difficulty)
     setLocal(ctrl)
     setPeer(null)
     setSelected(-1)
     setTarget(-1)
+    slMatchKind.current = 'solo'
     setScreen('game')
     setStatus(ctrl.state.lastMessage)
     push(ctrl.state.lastMessage)
   }
 
-  const leaveToMenu = () => {
+  const leaveToMenu = async () => {
     peer?.destroy()
     local?.destroy()
     setPeer(null)
     setLocal(null)
-    setScreen('menu')
+    prevMatchRef.current = null
+    if (slBoot && slMatchKind.current !== 'none') {
+      await releaseSlTable()
+    }
+    slMatchKind.current = 'none'
+    setScreen(slBoot ? 'sl' : 'menu')
+  }
+
+  if (screen === 'sl' && slBoot && !state) {
+    return (
+      <SlTableScreens
+        boot={slBoot}
+        displayName={name}
+        onNameChange={setName}
+        busy={busy}
+        setBusy={setBusy}
+        status={status}
+        setStatus={setStatus}
+        onStartSolo={startLocal}
+        onCreatedMp={async (roomCode) => {
+          peer?.destroy()
+          local?.destroy()
+          const session = await createPeerHost(name, {
+            roomCode,
+            avatarUid: slBoot.uid,
+          })
+          setPeer(session)
+          setLocal(null)
+          slMatchKind.current = 'mp'
+          setStatus(session.status)
+        }}
+        onJoinedMp={async (roomCode) => {
+          peer?.destroy()
+          local?.destroy()
+          const session = await joinPeerRoom(roomCode, name, { avatarUid: slBoot.uid })
+          setPeer(session)
+          setLocal(null)
+          slMatchKind.current = 'mp'
+          setStatus(session.status)
+        }}
+        onHostStartMp={() => {
+          peer?.startMatch()
+          bump()
+        }}
+        onLeaveLobby={async () => {
+          peer?.destroy()
+          setPeer(null)
+          slMatchKind.current = 'none'
+        }}
+        peerRoomCode={peer?.roomCode}
+        peerSeats={peer?.seats}
+        isPeerHost={peer?.isHost}
+        onPeerReady={() => peer?.setReady(true)}
+      />
+    )
   }
 
   if (screen === 'menu') {
@@ -189,9 +282,12 @@ function AppInner() {
             <li>
               Play <strong>Drive</strong> to start moving, then green <strong>mile cards</strong> toward exactly 1000.
             </li>
-            <li>Opponents hit you with red hazards — matching remedies/safeties clear them and put you back on the road (no second Drive needed after a fix).</li>
+            <li>
+              Opponents hit you with red hazards — matching remedies/safeties clear them and put you back on the road
+              (no second Drive needed after a fix).
+            </li>
             <li>On your turn: double-click Draw or Discard to take a card (auto-draws if discard is empty).</li>
-            <li>Then double-click a lit card to play, or drag it up onto the table / down to discard.</li>
+            <li>Then double-click a lit card to play, or slide it up to play / down to discard.</li>
           </ol>
           <button className="btn secondary" onClick={() => setScreen('menu')}>
             Back
@@ -226,7 +322,7 @@ function AppInner() {
               <option value="hard">Hard</option>
             </select>
           </label>
-          <button className="btn primary" onClick={startLocal}>
+          <button className="btn primary" onClick={() => void startLocal()}>
             Start Race
           </button>
           <button className="btn ghost" onClick={() => setScreen('menu')}>
@@ -330,7 +426,7 @@ function AppInner() {
             </>
           )}
           {status && <p className="muted">{status}</p>}
-          <button className="btn ghost" onClick={leaveToMenu}>
+          <button className="btn ghost" onClick={() => void leaveToMenu()}>
             Back
           </button>
         </div>
@@ -386,8 +482,8 @@ function AppInner() {
         <div className="banner-card">
           <h2>{state.winnerIndex >= 0 ? state.players[state.winnerIndex]!.displayName : 'Nobody'}</h2>
           <p>{state.lastMessage}</p>
-          <button className="btn primary" onClick={leaveToMenu}>
-            Main Menu
+          <button className="btn primary" onClick={() => void leaveToMenu()}>
+            {slBoot ? 'Back to Table Lobby' : 'Main Menu'}
           </button>
         </div>
       </div>
@@ -411,7 +507,7 @@ function AppInner() {
       onSelectTarget={setTarget}
       onDrawDeck={drawFromDeck}
       onDrawDiscard={drawFromDiscard}
-      onMenu={leaveToMenu}
+      onMenu={() => void leaveToMenu()}
       coupBanner={coupBanner}
       endOverlay={endOverlay}
     />

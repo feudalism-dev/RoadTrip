@@ -25,7 +25,7 @@ export type LocalControllers = {
   destroy: () => void
 }
 
-const AI_DELAY_MS = 1100
+const AI_DELAY_MS = 2800
 const AI_NAMES = ['Cruise Control', 'Night Owl', 'Road Hog'] as const
 
 export function startSolo(name: string, aiCount: number, difficulty: AiDifficulty): LocalControllers {

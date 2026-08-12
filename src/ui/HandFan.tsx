@@ -61,7 +61,7 @@ export function HandFan({
       })}
       <p className="hand-hint">
         {myTurn
-          ? 'Double-click a lit card to play · drag up to play · drag down to discard'
+          ? 'Double-click a lit card to play · slide up to play · slide down to discard'
           : disabled
             ? 'Draw first — double-click the Draw or Discard pile'
             : 'Waiting for other drivers…'}

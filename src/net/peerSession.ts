@@ -11,7 +11,7 @@ import { MAX_PLAYERS, MIN_PLAYERS } from '../core/cards'
 export type LobbySeat = { id: string; name: string; ready: boolean; isHost: boolean }
 
 type Wire =
-  | { t: 'hello'; id: string; name: string }
+  | { t: 'hello'; id: string; name: string; avatarUid?: string }
   | { t: 'lobby'; seats: LobbySeat[]; roomCode: string }
   | { t: 'ready'; id: string; ready: boolean }
   | { t: 'start'; state: MatchState }
@@ -25,6 +25,17 @@ function roomCode(): string {
   let s = ''
   for (let i = 0; i < 5; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)]
   return s
+}
+
+export type PeerHostOptions = {
+  roomCode?: string
+  /** When set (SL table), only these avatar UUIDs may join. */
+  allowedAvatarUids?: string[]
+  avatarUid?: string
+}
+
+export type PeerJoinOptions = {
+  avatarUid?: string
 }
 
 export type PeerSession = {
@@ -43,19 +54,26 @@ export type PeerSession = {
   destroy: () => void
 }
 
-export async function createPeerHost(playerName: string): Promise<PeerSession> {
-  const code = roomCode()
+export async function createPeerHost(
+  playerName: string,
+  opts?: PeerHostOptions,
+): Promise<PeerSession> {
+  const code = (opts?.roomCode || roomCode()).toUpperCase()
   const peer = new Peer(`roadtrip-${code}-host`)
   await waitOpen(peer)
-  return buildSession(peer, code, true, playerName)
+  return buildSession(peer, code, true, playerName, undefined, opts)
 }
 
-export async function joinPeerRoom(code: string, playerName: string): Promise<PeerSession> {
+export async function joinPeerRoom(
+  code: string,
+  playerName: string,
+  opts?: PeerJoinOptions,
+): Promise<PeerSession> {
   const peer = new Peer()
   await waitOpen(peer)
   const conn = peer.connect(`roadtrip-${code.toUpperCase()}-host`, { reliable: true })
   await waitConn(conn)
-  return buildSession(peer, code.toUpperCase(), false, playerName, conn)
+  return buildSession(peer, code.toUpperCase(), false, playerName, conn, opts)
 }
 
 function waitOpen(peer: Peer): Promise<void> {
@@ -78,8 +96,14 @@ function buildSession(
   isHost: boolean,
   playerName: string,
   existingConn?: DataConnection,
+  opts?: PeerHostOptions | PeerJoinOptions,
 ): PeerSession {
   const localId = peer.id
+  const localAvatarUid = opts && 'avatarUid' in opts ? opts.avatarUid : undefined
+  const allowedAvatarUids =
+    opts && 'allowedAvatarUids' in opts && opts.allowedAvatarUids
+      ? new Set(opts.allowedAvatarUids.map((u) => u.toLowerCase()))
+      : null
   let seats: LobbySeat[] = [
     { id: localId, name: playerName || 'Driver', ready: isHost, isHost: true },
   ]
@@ -105,6 +129,15 @@ function buildSession(
 
   const onMessage = (fromId: string, msg: Wire) => {
     if (msg.t === 'hello' && isHost) {
+      if (allowedAvatarUids) {
+        const uid = (msg.avatarUid || '').toLowerCase()
+        if (!uid || !allowedAvatarUids.has(uid)) {
+          const c = conns.get(fromId)
+          if (c) send(c, { t: 'info', message: 'Not seated/joined at this Road Trip table.' })
+          c?.close()
+          return
+        }
+      }
       if (seats.length >= MAX_PLAYERS) {
         const c = conns.get(fromId)
         if (c) send(c, { t: 'info', message: `Room full (max ${MAX_PLAYERS} players).` })
@@ -171,7 +204,12 @@ function buildSession(
     if (isHost) {
       // wait for hello
     } else {
-      send(conn, { t: 'hello', id: localId, name: playerName || 'Driver' })
+      send(conn, {
+        t: 'hello',
+        id: localId,
+        name: playerName || 'Driver',
+        avatarUid: localAvatarUid,
+      })
     }
   }
 
