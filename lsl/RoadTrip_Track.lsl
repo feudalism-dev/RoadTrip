@@ -67,6 +67,8 @@ integer gAttractOn = FALSE;
 integer gAttractSet = 0; // 0 = panorama A, 1 = panorama B
 integer gTimerMode = 0;
 integer gPendingTurnPlayer = 0;
+// Wire lane 1–4 that currently owns YOUR TURN (0 = none).
+integer gCurrentTurnPlayer = 0;
 integer DEBUG = FALSE;
 
 integer debug(string m)
@@ -235,6 +237,16 @@ showMatchCars()
     }
 }
 
+ensureSeatInMatch(integer playerNum)
+{
+    if (playerNum < 1 || playerNum > MAX_LANES) return;
+    integer idx = playerNum - 1;
+    if (llList2Integer(gSeatInMatch, idx)) return;
+    gSeatInMatch = llListReplaceList(gSeatInMatch, [TRUE], idx, idx);
+    setCarAlpha(playerNum, 1.0);
+    debug("ensureSeatInMatch " + (string)playerNum);
+}
+
 applyAttractSet()
 {
     // Same panorama set on faces 0–3 together (A1–A4 or B1–B4).
@@ -285,6 +297,7 @@ doFullReset()
     gInMatch = FALSE;
     gSeatInMatch = [FALSE, FALSE, FALSE, FALSE];
     gPendingTurnPlayer = 0;
+    gCurrentTurnPlayer = 0;
     gTimerMode = TIMER_OFF;
     llSetTimerEvent(0.0);
     snapAllCarsToStart();
@@ -426,6 +439,10 @@ handleGameOver(integer first, integer second, integer third, integer fourth)
 
 applyTurnChange(integer currentPlayer)
 {
+    if (currentPlayer < 1 || currentPlayer > MAX_LANES) return;
+    gCurrentTurnPlayer = currentPlayer;
+    ensureSeatInMatch(currentPlayer);
+
     integer p;
     for (p = 1; p <= MAX_LANES; p++)
     {
@@ -436,7 +453,7 @@ applyTurnChange(integer currentPlayer)
         }
         else
         {
-            // Not driving — WAITING (covers discard handoff + hazard aftermath).
+            // Never leave YOUR TURN on anyone else — WAITING for all other match lanes.
             setFaceTexture(p, "status-waiting");
         }
         @cont;
@@ -500,6 +517,7 @@ handleEventPipe(string payload)
     {
         integer seat = targetNum;
         if (seat < 1) seat = playerNum;
+        ensureSeatInMatch(seat);
         updateCarPosition(seat, miles);
         setFaceTexture(seat, selfPlayKey(card, value));
         return;
@@ -511,6 +529,8 @@ handleEventPipe(string payload)
         integer tgt = targetNum;
         integer act = playerNum;
         if (tgt < 1) tgt = act;
+        ensureSeatInMatch(tgt);
+        if (act >= 1) ensureSeatInMatch(act);
         updateCarPosition(tgt, miles);
         setFaceTexture(tgt, hazardHitKey(card));
         if (act >= 1 && act != tgt)
@@ -518,9 +538,10 @@ handleEventPipe(string payload)
             setFaceTexture(act, hazardPlayKey(card));
         }
         // Hold before YOUR TURN so victim/attacker can read the hazard splash.
+        // Do not clear gPendingTurnPlayer if a TURN_CHANGE already queued this hold.
         if (gTimerMode != TIMER_GAME_OVER)
         {
-            gPendingTurnPlayer = 0;
+            if (gTimerMode != TIMER_HAZARD_HOLD) gPendingTurnPlayer = 0;
             gTimerMode = TIMER_HAZARD_HOLD;
             llSetTimerEvent(HAZARD_HOLD_SEC);
         }
@@ -531,6 +552,7 @@ handleEventPipe(string payload)
     {
         integer seat = targetNum;
         if (seat < 1) seat = playerNum;
+        ensureSeatInMatch(seat);
         updateCarPosition(seat, miles);
         setFaceTexture(seat, selfPlayKey(card, value));
         return;
@@ -539,6 +561,8 @@ handleEventPipe(string payload)
     if (ev == "TURN_CHANGE")
     {
         if (playerNum < 1 || playerNum > MAX_LANES) return;
+        // Always remember the latest driver — supersedes any older pending turn.
+        gCurrentTurnPlayer = playerNum;
         // Defer while hazard splash is showing.
         if (gTimerMode == TIMER_HAZARD_HOLD)
         {
@@ -576,6 +600,7 @@ handleStart(string seatCsv)
     llSetTimerEvent(0.0);
 
     parseStartSeats(seatCsv);
+    gCurrentTurnPlayer = 0;
     // If empty CSV, treat as all four (solo/debug fallback).
     if (seatCsv == "")
     {
@@ -682,6 +707,8 @@ default
             gPendingTurnPlayer = 0;
             gTimerMode = TIMER_OFF;
             llSetTimerEvent(0.0);
+            // Prefer explicit pending TURN_CHANGE; else restore last known driver.
+            if (pending < 1) pending = gCurrentTurnPlayer;
             if (pending >= 1) applyTurnChange(pending);
             return;
         }

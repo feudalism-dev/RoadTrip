@@ -102,8 +102,11 @@ export async function tableClaimSolo(
   slCap: string,
   uid: string,
   seat: number,
+  /** Total match players including the human (1–4). Table shows that many cars. */
+  players = 2,
 ): Promise<TableStatus> {
-  return jsonpTable(slCap, { action: 'claim_solo', uid, seat })
+  const n = Math.max(1, Math.min(4, players))
+  return jsonpTable(slCap, { action: 'claim_solo', uid, seat, players: n })
 }
 
 export async function tableEndGame(slCap: string, uid: string, seat: number): Promise<TableStatus> {

@@ -45,6 +45,7 @@ string gPendingCb = "";
 string gPendingAction = "";
 key gPendingUid = NULL_KEY;
 integer gResetDeadline = 0;
+integer gPendingPlayers = 1;
 
 // Stand grace: av keys waiting to clear
 list gGraceAv = [];
@@ -483,6 +484,42 @@ string statusJson(integer ok, string err)
     return j;
 }
 
+string seatsForMatchPlayers(key human, integer nPlayers)
+{
+    // Human's AVsitter seat first, then unused seats for AI / extra lanes.
+    if (nPlayers < 1) nPlayers = 1;
+    if (nPlayers > MAX_SEATS) nPlayers = MAX_SEATS;
+
+    integer humanSeat = seatOf(human);
+    if (humanSeat < 0) humanSeat = 0;
+
+    string s = (string)(humanSeat + 1);
+    integer need = nPlayers - 1;
+    integer i;
+    for (i = 0; i < MAX_SEATS; i++)
+    {
+        if (need <= 0) jump done;
+        if (i == humanSeat) jump cont;
+        // Prefer empty chairs for AI cars.
+        if (llList2Key(gSeatAv, i) != NULL_KEY) jump cont;
+        s += "," + (string)(i + 1);
+        need--;
+        @cont;
+    }
+    // Fill any remaining slots even if occupied (edge case).
+    for (i = 0; i < MAX_SEATS; i++)
+    {
+        if (need <= 0) jump done;
+        if (i == humanSeat) jump cont2;
+        if (llSubStringIndex("," + s + ",", "," + (string)(i + 1) + ",") >= 0) jump cont2;
+        s += "," + (string)(i + 1);
+        need--;
+        @cont2;
+    }
+    @done;
+    return s;
+}
+
 string joinedSeatsCsv()
 {
     // Wire seats 1–4 for Track (AVsitter seat i → player i+1).
@@ -515,15 +552,10 @@ integer finishReset()
         gHostUid = NULL_KEY;
         gRoomCode = "";
         gJoined = [uid];
-        string seats = joinedSeatsCsv();
-        if (seats == "")
-        {
-            integer seat = seatOf(uid);
-            if (seat >= 0) seats = (string)(seat + 1);
-            else seats = "1";
-        }
+        string seats = seatsForMatchPlayers(uid, gPendingPlayers);
         llMessageLinked(LINK_SET, TRACK_CMD_START, seats, NULL_KEY);
-        debug("TRACK_CMD_START (solo) seats=" + seats);
+        debug("TRACK_CMD_START (solo) seats=" + seats + " players=" + (string)gPendingPlayers);
+        gPendingPlayers = 1;
         if (httpId != NULL_KEY) sendJsonp(httpId, cb, statusJson(TRUE, ""));
         return TRUE;
     }
@@ -631,6 +663,10 @@ handleHttp(key id, string method, string body, string query)
             sendJsonp(id, cb, statusJson(FALSE, "other players are active — use multiplayer"));
             return;
         }
+        integer nPlayers = (integer)qget(q, "players");
+        if (nPlayers < 1) nPlayers = 1;
+        if (nPlayers > MAX_SEATS) nPlayers = MAX_SEATS;
+        gPendingPlayers = nPlayers;
         stashPending(id, cb, "claim_solo", uid);
         beginTrackReset(FALSE);
         return;
@@ -845,6 +881,11 @@ default
         {
             integer seat = seatOf(id);
             if (seat < 0) seat = (integer)str;
+            // Poker-style: detach HUD immediately on stand; seat/forfeit still wait for grace.
+            if (id != NULL_KEY)
+            {
+                llRegionSayTo(id, commandChannel(id), "RT_DETACH|" + (string)llGetKey());
+            }
             beginStandGrace(id, seat);
             return;
         }

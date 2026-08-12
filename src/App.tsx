@@ -21,9 +21,10 @@ import { GameBoard } from './ui/GameBoard'
 import { ToastManager, useToasts } from './ui/ToastManager'
 import { readSlBootstrap } from './sl/bootstrap'
 import { tableEndGame } from './sl/tableApi'
-import { emitFromState } from './sl/trackEvents'
+import { emitFromState, buildWireMap } from './sl/trackEvents'
 import { cloneState } from './core/state'
 import { SlTableScreens } from './ui/SlTableScreens'
+import type { TableStatus } from './sl/tableApi'
 
 type Screen = 'menu' | 'soloSetup' | 'lobby' | 'game' | 'help' | 'sl'
 
@@ -53,6 +54,8 @@ function AppInner() {
   const lastToast = useRef('')
   const slMatchKind = useRef<'none' | 'solo' | 'mp'>('none')
   const prevMatchRef = useRef<MatchState | null>(null)
+  /** Match index → track lane 1–4 (AVsitter seat + 1). */
+  const wireByPlayerRef = useRef<number[]>([1])
 
   useEffect(() => {
     if (!peer) return
@@ -81,6 +84,7 @@ function AppInner() {
       uid: slBoot.uid,
       localSeat: slBoot.seat,
       isEmitter,
+      wireByPlayer: wireByPlayerRef.current,
     })
     prevMatchRef.current = cloneState(state)
   }, [tick, state, local, peer, slBoot])
@@ -194,6 +198,12 @@ function AppInner() {
     local?.destroy()
     peer?.destroy()
     const ctrl = startSolo(name, aiCount, difficulty)
+    wireByPlayerRef.current = buildWireMap({
+      playerCount: ctrl.state.players.length,
+      localMatchIndex: 0,
+      localSeat: slBoot?.seat ?? 0,
+    })
+    prevMatchRef.current = null
     setLocal(ctrl)
     setPeer(null)
     setSelected(-1)
@@ -210,6 +220,7 @@ function AppInner() {
     setPeer(null)
     setLocal(null)
     prevMatchRef.current = null
+    wireByPlayerRef.current = [1]
     if (slBoot && slMatchKind.current !== 'none') {
       await releaseSlTable()
     }
@@ -228,6 +239,8 @@ function AppInner() {
         status={status}
         setStatus={setStatus}
         onStartSolo={startLocal}
+        aiCount={aiCount}
+        onAiCountChange={setAiCount}
         onCreatedMp={async (roomCode) => {
           peer?.destroy()
           local?.destroy()
@@ -249,7 +262,24 @@ function AppInner() {
           slMatchKind.current = 'mp'
           setStatus(session.status)
         }}
-        onHostStartMp={() => {
+        onHostStartMp={(tableSt?: TableStatus) => {
+          const seats = peer?.seats ?? []
+          const roster = tableSt?.roster ?? []
+          const uidToSeat = new Map(
+            roster.map((r) => [r.uid.toLowerCase(), r.seat] as const),
+          )
+          const knownSeats = seats.map((s) => {
+            const uid = (s.avatarUid || '').toLowerCase()
+            if (!uid) return undefined
+            return uidToSeat.get(uid)
+          })
+          wireByPlayerRef.current = buildWireMap({
+            playerCount: Math.max(seats.length, 2),
+            localMatchIndex: Math.max(0, seats.findIndex((s) => s.isHost)),
+            localSeat: slBoot.seat,
+            knownSeats,
+          })
+          prevMatchRef.current = null
           peer?.startMatch()
           bump()
         }}

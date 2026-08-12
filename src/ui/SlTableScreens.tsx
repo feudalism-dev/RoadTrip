@@ -20,9 +20,11 @@ type Props = {
   status: string
   setStatus: (s: string) => void
   onStartSolo: () => void | Promise<void>
+  aiCount: number
+  onAiCountChange: (n: number) => void
   onCreatedMp: (roomCode: string, tableStatus: TableStatus) => void | Promise<void>
   onJoinedMp: (roomCode: string, tableStatus: TableStatus) => void | Promise<void>
-  onHostStartMp: () => void | Promise<void>
+  onHostStartMp: (tableStatus?: TableStatus) => void | Promise<void>
   onLeaveLobby?: () => void | Promise<void>
   peerRoomCode?: string
   peerSeats?: { id: string; name: string; ready: boolean; isHost: boolean }[]
@@ -39,6 +41,8 @@ export function SlTableScreens({
   status,
   setStatus,
   onStartSolo,
+  aiCount,
+  onAiCountChange,
   onCreatedMp,
   onJoinedMp,
   onHostStartMp,
@@ -170,6 +174,18 @@ export function SlTableScreens({
 
         {!showMpLobby && (
           <>
+            <label>
+              AI opponents
+              <select
+                value={aiCount}
+                onChange={(e) => onAiCountChange(Number(e.target.value))}
+                disabled={busy}
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+              </select>
+            </label>
             <button
               className="btn primary"
               disabled={busy || !canSolo}
@@ -185,7 +201,8 @@ export function SlTableScreens({
                 setErr('')
                 try {
                   if (!boot.slCap) throw new Error('Table HTTP-IN required (missing sl_cap in HUD URL)')
-                  const st = await tableClaimSolo(boot.slCap, boot.uid, boot.seat)
+                  const players = 1 + Math.max(1, Math.min(3, aiCount))
+                  const st = await tableClaimSolo(boot.slCap, boot.uid, boot.seat, players)
                   setTable(st)
                   if (!st.ok) throw new Error(st.error || 'Cannot start solo')
                   await onStartSolo()
@@ -289,8 +306,10 @@ export function SlTableScreens({
                       const st = await tableStart(boot.slCap, boot.uid, boot.seat)
                       setTable(st)
                       if (!st.ok) throw new Error(st.error || 'Start failed')
+                      await onHostStartMp(st)
+                    } else {
+                      await onHostStartMp()
                     }
-                    await onHostStartMp()
                   } catch (e) {
                     setErr(e instanceof Error ? e.message : 'Start failed')
                   } finally {

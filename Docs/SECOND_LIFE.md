@@ -60,7 +60,7 @@ Query params: `action`, `cb`, `uid`, `name`, `seat`, plus action-specific fields
 | `status` | Roster, active list, lock mode, room code (if lobby/match) |
 | `enter` | Become Active |
 | `leave` | Leave Active / lobby |
-| `claim_solo` | Lock table for Solo (only if idle + caller Active + sole-or-allowed) |
+| `claim_solo` | Lock table for Solo (only if idle + caller Active + sole-or-allowed). Optional `players=1..4` (default 1) — how many track cars to show (human + AI). |
 | `end_game` | Release lock (solo end / abandon) |
 | `create` | Mint room code; caller = host; table → lobby |
 | `join` | Join open lobby |

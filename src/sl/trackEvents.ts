@@ -1,6 +1,8 @@
 /**
  * Map MatchState diffs → pipe payloads for the in-world Track
  * (`EVENT|player|target|CARD|value|miles`). Solo client or MP host only.
+ *
+ * Wire player 1–4 = AVsitter seat 0–3 + 1 (physical car lanes), NOT raw match index.
  */
 
 import { CardCategory, CardId, MatchPhase, getCard } from '../core/cards'
@@ -14,6 +16,11 @@ export type TrackEmitOpts = {
   localSeat: number
   /** Solo local match or PeerJS host — guests must pass false. */
   isEmitter: boolean
+  /**
+   * Match player index → wire lane 1–4 (AVsitter seat + 1).
+   * Built once at match start so AI/humans land on the correct cars.
+   */
+  wireByPlayer: number[]
 }
 
 /** CardId → pipe CARD_TYPE (matches TABLE_SCREEN_ASSETS / funcSpec). */
@@ -70,12 +77,64 @@ export function cardTypeFor(card: CardId): string {
   }
 }
 
-/** 0-based match index → wire player 1–4. */
-export function wirePlayer(playerIndex: number): number {
-  return playerIndex + 1
+/**
+ * Assign wire lanes (1–4) for each match player.
+ * Local human keeps `localSeat`; others fill unused seats in order (matches Table solo AI lanes).
+ * Optional `knownSeats` (match index → AVsitter 0–3) pins multiplayer humans.
+ */
+export function buildWireMap(opts: {
+  playerCount: number
+  localMatchIndex: number
+  localSeat: number
+  knownSeats?: Array<number | undefined | null>
+}): number[] {
+  const n = Math.max(1, Math.min(4, opts.playerCount))
+  const map = new Array<number>(n).fill(0)
+  const used = new Set<number>()
+
+  const take = (matchIndex: number, seat0: number) => {
+    if (matchIndex < 0 || matchIndex >= n) return
+    if (seat0 < 0 || seat0 > 3 || used.has(seat0)) return
+    if (map[matchIndex]! > 0) return
+    map[matchIndex] = seat0 + 1
+    used.add(seat0)
+  }
+
+  if (opts.localSeat >= 0 && opts.localSeat <= 3) {
+    take(opts.localMatchIndex, opts.localSeat)
+  }
+
+  opts.knownSeats?.forEach((seat0, i) => {
+    if (seat0 == null) return
+    take(i, seat0)
+  })
+
+  for (let i = 0; i < n; i++) {
+    if (map[i]! > 0) continue
+    for (let s = 0; s < 4; s++) {
+      if (!used.has(s)) {
+        map[i] = s + 1
+        used.add(s)
+        break
+      }
+    }
+  }
+
+  // Absolute fallback (should not hit)
+  for (let i = 0; i < n; i++) {
+    if (map[i]! < 1) map[i] = i + 1
+  }
+  return map
+}
+
+function wireOf(map: number[], playerIndex: number): number {
+  const w = map[playerIndex]
+  if (w != null && w >= 1 && w <= 4) return w
+  return Math.min(4, Math.max(1, playerIndex + 1))
 }
 
 export function pipePayload(
+  map: number[],
   event: string,
   playerIndex: number,
   targetIndex: number,
@@ -85,8 +144,8 @@ export function pipePayload(
 ): string {
   return [
     event,
-    wirePlayer(playerIndex),
-    wirePlayer(targetIndex),
+    wireOf(map, playerIndex),
+    wireOf(map, targetIndex),
     cardType,
     value,
     miles,
@@ -94,30 +153,40 @@ export function pipePayload(
 }
 
 /** Diff prev→next into zero or more pipe payloads (ordered for spectators). */
-export function payloadsFromState(prev: MatchState | null, next: MatchState): string[] {
+export function payloadsFromState(
+  prev: MatchState | null,
+  next: MatchState,
+  wireByPlayer: number[],
+): string[] {
   const out: string[] = []
+  const map =
+    wireByPlayer.length >= next.players.length
+      ? wireByPlayer
+      : buildWireMap({
+          playerCount: next.players.length,
+          localMatchIndex: 0,
+          localSeat: 0,
+        })
 
   if (!prev) {
-    out.push(pipePayload('GAME_START', 0, 0, 'NONE', 0, 0))
+    out.push(pipePayload(map, 'GAME_START', 0, 0, 'NONE', 0, 0))
     const cur = next.currentPlayer
     out.push(
-      pipePayload('TURN_CHANGE', cur, cur, 'NONE', 0, next.players[cur]?.miles ?? 0),
+      pipePayload(map, 'TURN_CHANGE', cur, cur, 'NONE', 0, next.players[cur]?.miles ?? 0),
     )
     return out
   }
 
   if (prev.phase !== MatchPhase.Finished && next.phase === MatchPhase.Finished) {
-    // Rank by miles desc; wire seats into GAME_OVER|1st|2nd|RANK|3rd|4th.
     const ranked = next.players
       .map((p, i) => ({ i, miles: p.miles }))
       .sort((a, b) => b.miles - a.miles)
     const seats = [0, 0, 0, 0]
     for (let r = 0; r < ranked.length && r < 4; r++) {
-      seats[r] = wirePlayer(ranked[r]!.i)
+      seats[r] = wireOf(map, ranked[r]!.i)
     }
-    // Prefer declared winner as 1st when present.
     if (next.winnerIndex >= 0) {
-      const winSeat = wirePlayer(next.winnerIndex)
+      const winSeat = wireOf(map, next.winnerIndex)
       const others = seats.filter((s) => s !== winSeat && s > 0)
       seats[0] = winSeat
       seats[1] = others[0] ?? 0
@@ -139,22 +208,21 @@ export function payloadsFromState(prev: MatchState | null, next: MatchState): st
 
     if (b.miles > a.miles) {
       const delta = b.miles - a.miles
-      out.push(pipePayload('MILEAGE', i, i, 'DISTANCE', delta, b.miles))
+      out.push(pipePayload(map, 'MILEAGE', i, i, 'DISTANCE', delta, b.miles))
     }
 
     if (b.safeties.length > a.safeties.length) {
       const card = b.safeties[b.safeties.length - 1]!
-      out.push(pipePayload('SAFETY', i, i, cardTypeFor(card), 0, b.miles))
+      out.push(pipePayload(map, 'SAFETY', i, i, cardTypeFor(card), 0, b.miles))
     }
 
     if (b.battlePile.length > a.battlePile.length) {
       const card = b.battlePile[b.battlePile.length - 1]!
       const def = getCard(card)
       if (def.category === CardCategory.Hazard) {
-        out.push(pipePayload('HAZARD', attacker, i, cardTypeFor(card), 0, b.miles))
+        out.push(pipePayload(map, 'HAZARD', attacker, i, cardTypeFor(card), 0, b.miles))
       } else if (def.category === CardCategory.Remedy) {
-        // Remedies / GO — self-play; Track keys off CARD_TYPE
-        out.push(pipePayload('MILEAGE', i, i, cardTypeFor(card), 0, b.miles))
+        out.push(pipePayload(map, 'MILEAGE', i, i, cardTypeFor(card), 0, b.miles))
       }
     }
 
@@ -162,9 +230,9 @@ export function payloadsFromState(prev: MatchState | null, next: MatchState): st
       const card = b.speedPile[b.speedPile.length - 1]!
       const def = getCard(card)
       if (def.category === CardCategory.Hazard) {
-        out.push(pipePayload('HAZARD', attacker, i, cardTypeFor(card), 0, b.miles))
+        out.push(pipePayload(map, 'HAZARD', attacker, i, cardTypeFor(card), 0, b.miles))
       } else {
-        out.push(pipePayload('MILEAGE', i, i, cardTypeFor(card), 0, b.miles))
+        out.push(pipePayload(map, 'MILEAGE', i, i, cardTypeFor(card), 0, b.miles))
       }
     }
   }
@@ -175,7 +243,7 @@ export function payloadsFromState(prev: MatchState | null, next: MatchState): st
   ) {
     const cur = next.currentPlayer
     out.push(
-      pipePayload('TURN_CHANGE', cur, cur, 'NONE', 0, next.players[cur]?.miles ?? 0),
+      pipePayload(map, 'TURN_CHANGE', cur, cur, 'NONE', 0, next.players[cur]?.miles ?? 0),
     )
   }
 
@@ -186,31 +254,41 @@ export function payloadsFromState(prev: MatchState | null, next: MatchState): st
  * Emit track events for a state transition. No-ops for guests / missing cap.
  * Events are sent sequentially; after a HAZARD we pause so HIT/PLAY screens
  * are visible before TURN_CHANGE overwrites them.
+ *
+ * Critical: all emits share one promise chain. Parallel hazard sleeps used to
+ * let a stale TURN_CHANGE land after a newer one (wrong seat stuck on YOUR TURN).
  */
+let emitChain: Promise<void> = Promise.resolve()
+
 export function emitFromState(
   prev: MatchState | null,
   next: MatchState,
   opts: TrackEmitOpts,
 ): void {
   if (!opts.isEmitter || !opts.slCap || !opts.uid) return
-  const payloads = payloadsFromState(prev, next)
+  const payloads = payloadsFromState(prev, next, opts.wireByPlayer)
   if (!payloads.length) return
 
-  void (async () => {
-    let pauseAfterHazard = false
-    for (const p of payloads) {
-      if (pauseAfterHazard) {
-        await sleep(HAZARD_SCREEN_HOLD_MS)
-        pauseAfterHazard = false
+  const { slCap, uid, localSeat } = opts
+  emitChain = emitChain
+    .then(async () => {
+      let pauseAfterHazard = false
+      for (const p of payloads) {
+        if (pauseAfterHazard) {
+          await sleep(HAZARD_SCREEN_HOLD_MS)
+          pauseAfterHazard = false
+        }
+        try {
+          await tableEvent(slCap, uid, localSeat, p)
+        } catch {
+          /* ignore — MOAP / cap blips */
+        }
+        if (p.startsWith('HAZARD|')) pauseAfterHazard = true
       }
-      try {
-        await tableEvent(opts.slCap, opts.uid, opts.localSeat, p)
-      } catch {
-        /* ignore — MOAP / cap blips */
-      }
-      if (p.startsWith('HAZARD|')) pauseAfterHazard = true
-    }
-  })()
+    })
+    .catch(() => {
+      /* keep chain alive after a failed batch */
+    })
 }
 
 const HAZARD_SCREEN_HOLD_MS = 2800

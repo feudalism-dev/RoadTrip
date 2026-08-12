@@ -8,7 +8,14 @@ import {
 } from '../core/rules'
 import { MAX_PLAYERS, MIN_PLAYERS } from '../core/cards'
 
-export type LobbySeat = { id: string; name: string; ready: boolean; isHost: boolean }
+export type LobbySeat = {
+  id: string
+  name: string
+  ready: boolean
+  isHost: boolean
+  /** Second Life avatar UUID when playing at an in-world table (maps to AVsitter seat). */
+  avatarUid?: string
+}
 
 type Wire =
   | { t: 'hello'; id: string; name: string; avatarUid?: string }
@@ -105,7 +112,13 @@ function buildSession(
       ? new Set(opts.allowedAvatarUids.map((u) => u.toLowerCase()))
       : null
   let seats: LobbySeat[] = [
-    { id: localId, name: playerName || 'Driver', ready: isHost, isHost: true },
+    {
+      id: localId,
+      name: playerName || 'Driver',
+      ready: isHost,
+      isHost: true,
+      avatarUid: localAvatarUid,
+    },
   ]
   let state: MatchState | null = null
   let status = isHost ? `Room ${code} — share this code` : `Joined ${code}`
@@ -144,7 +157,16 @@ function buildSession(
         return
       }
       if (!seats.some((s) => s.id === msg.id)) {
-        seats = [...seats, { id: msg.id, name: msg.name, ready: false, isHost: false }]
+        seats = [
+          ...seats,
+          {
+            id: msg.id,
+            name: msg.name,
+            ready: false,
+            isHost: false,
+            avatarUid: msg.avatarUid,
+          },
+        ]
       }
       syncLobby()
       return
@@ -219,7 +241,15 @@ function buildSession(
     peer.on('connection', (conn) => {
       conn.on('open', () => attach(conn))
     })
-    seats = [{ id: localId, name: playerName || 'Host', ready: true, isHost: true }]
+    seats = [
+      {
+        id: localId,
+        name: playerName || 'Host',
+        ready: true,
+        isHost: true,
+        avatarUid: localAvatarUid,
+      },
+    ]
   }
 
   const session: PeerSession = {
