@@ -165,6 +165,18 @@ export function isLegalPlay(state: MatchState, localIndex: number, handIndex: nu
   )
 }
 
+/** Hit-test opponent/self tableaux marked with `data-rt-player`. */
+export function playerIndexAtPoint(clientX: number, clientY: number): number | null {
+  const el = document.elementFromPoint(clientX, clientY)
+  if (!el) return null
+  const node = el.closest('[data-rt-player]')
+  if (!node) return null
+  const raw = node.getAttribute('data-rt-player')
+  if (raw == null || raw === '') return null
+  const idx = Number(raw)
+  return Number.isFinite(idx) ? idx : null
+}
+
 export function cardClass(category: CardCategory): string {
   switch (category) {
     case CardCategory.Distance:
@@ -241,7 +253,7 @@ export function whatShouldIDo(state: MatchState, localIndex: number): string {
   if (mile) {
     return `You're moving. Play a mile card (glowing), or hit Cruise Control with a hazard if you want to slow them down.`
   }
-  return 'Play a Safety, play a hazard on an opponent (click them first), or discard.'
+  return 'Play a Safety, slide a hazard onto an opponent, or discard.'
 }
 
 function remedyNameFor(hazard: CardId): string {

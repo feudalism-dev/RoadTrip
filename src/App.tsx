@@ -125,19 +125,36 @@ function AppInner() {
     }
   }
 
-  const playIndex = (handIndex: number) => {
+  const playIndex = (handIndex: number, opts?: { dropPlayerIndex?: number }) => {
     if (!state || aiThinking) return
     const card = state.players[localIndex]!.hand[handIndex]
     if (card === undefined) return
     const def = getCard(card)
     let t = -1
     if (def.category === CardCategory.Hazard) {
-      if (target < 0 || target === localIndex) {
-        push('Click an opponent tableau first, then play the hazard.')
+      const drop = opts?.dropPlayerIndex
+      if (drop != null && drop !== localIndex) {
+        t = drop
+        setTarget(drop)
+      } else if (target >= 0 && target !== localIndex) {
+        t = target
+      } else {
+        push('Slide the hazard onto an opponent, or click their tableau then double-click the card.')
         setSelected(handIndex)
         return
       }
-      t = target
+      const legalForTarget = getLegalMoves(state).some(
+        (m) =>
+          m.kind === MoveKind.Play &&
+          m.playerIndex === localIndex &&
+          m.handIndex === handIndex &&
+          m.targetPlayerIndex === t,
+      )
+      if (!legalForTarget) {
+        push('Cannot play that hazard on that opponent right now.')
+        setSelected(handIndex)
+        return
+      }
     }
     if (!legalIndexes.has(handIndex) && !isLegalPlay(state, localIndex, handIndex)) {
       push('That card is not playable right now.')
@@ -287,7 +304,7 @@ function AppInner() {
               (no second Drive needed after a fix).
             </li>
             <li>On your turn: double-click Draw or Discard to take a card (auto-draws if discard is empty).</li>
-            <li>Then double-click a lit card to play, or slide it up to play / down to discard.</li>
+            <li>Then double-click a lit card to play, slide a hazard onto an opponent, or slide down to discard.</li>
           </ol>
           <button className="btn secondary" onClick={() => setScreen('menu')}>
             Back

@@ -3,7 +3,13 @@ import { useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'r
 import type { CardId } from '../core/cards'
 import { CardCategory, getCard } from '../core/cards'
 import { cardVisual } from './cardMeta'
+import { playerIndexAtPoint } from './gameHelpers'
 import { Tooltip } from './Tooltip'
+
+export type PlayGestureOpts = {
+  /** Opponent under the pointer when the slide ended (hazard targeting). */
+  dropPlayerIndex?: number
+}
 
 type Props = {
   id?: CardId
@@ -19,7 +25,7 @@ type Props = {
   onDoubleClick?: () => void
   /** Enable pointer slide: up = play, down = discard (CEF-safe; avoids HTML5 DnD). */
   draggablePlay?: boolean
-  onPlay?: () => void
+  onPlay?: (opts?: PlayGestureOpts) => void
   onDiscard?: () => void
 }
 
@@ -94,9 +100,21 @@ export function Card({
     } catch {
       /* already released */
     }
+
     const dy = e.clientY - originY.current
     const dx = e.clientX - originX.current
-    // Ignore mostly-horizontal moves / tiny taps (click / double-click still fire).
+    const moved = Math.abs(dy) >= 24 || Math.abs(dx) >= 24
+
+    // Dropped on a player tableau → play targeting that seat (hazards).
+    if (moved) {
+      const drop = playerIndexAtPoint(e.clientX, e.clientY)
+      if (drop != null) {
+        onPlay?.({ dropPlayerIndex: drop })
+        return
+      }
+    }
+
+    // Ignore mostly-horizontal / tiny taps (click / double-click still fire).
     if (Math.abs(dy) < 28 || Math.abs(dx) > Math.abs(dy) * 1.4) return
     if (dy <= SLIDE_PLAY_PX) onPlay?.()
     else if (dy >= SLIDE_DISCARD_PX) onDiscard?.()

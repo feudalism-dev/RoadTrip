@@ -38,6 +38,7 @@ export function Tableau({ state, playerIndex, localIndex, selectedAsTarget, onSe
       ]
         .filter(Boolean)
         .join(' ')}
+      data-rt-player={playerIndex}
       onClick={!mine ? onSelectTarget : undefined}
     >
       <header className="tableau-head">

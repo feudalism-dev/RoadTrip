@@ -19,7 +19,7 @@ type Props = {
   myDraw: boolean
   aiThinking: boolean
   onSelectCard: (i: number) => void
-  onPlayIndex: (i: number) => void
+  onPlayIndex: (i: number, opts?: { dropPlayerIndex?: number }) => void
   onDiscardIndex: (i: number) => void
   onSelectTarget: (i: number) => void
   onDrawDeck: () => void

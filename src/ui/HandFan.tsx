@@ -1,5 +1,5 @@
 import type { CardId } from '../core/cards'
-import { Card } from './Card'
+import { Card, type PlayGestureOpts } from './Card'
 
 type Props = {
   hand: CardId[]
@@ -8,7 +8,7 @@ type Props = {
   myTurn: boolean
   disabled?: boolean
   onSelect: (index: number) => void
-  onPlay: (index: number) => void
+  onPlay: (index: number, opts?: PlayGestureOpts) => void
   onDiscard: (index: number) => void
 }
 
@@ -49,8 +49,8 @@ export function HandFan({
               dimmed={myTurn && !legal}
               draggablePlay={myTurn && !disabled}
               onClick={() => !disabled && onSelect(i)}
-              onPlay={() => {
-                if (!disabled && legal) onPlay(i)
+              onPlay={(opts) => {
+                if (!disabled && (legal || opts?.dropPlayerIndex != null)) onPlay(i, opts)
               }}
               onDiscard={() => {
                 if (!disabled && myTurn) onDiscard(i)
@@ -61,7 +61,7 @@ export function HandFan({
       })}
       <p className="hand-hint">
         {myTurn
-          ? 'Double-click a lit card to play · slide up to play · slide down to discard'
+          ? 'Double-click to play · slide onto an opponent for hazards · slide down to discard'
           : disabled
             ? 'Draw first — double-click the Draw or Discard pile'
             : 'Waiting for other drivers…'}
