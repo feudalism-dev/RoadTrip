@@ -111,15 +111,31 @@ export function SlTableScreens({
           <p className="sl-meta">
             Table {boot.tableId.slice(0, 8)}…
           </p>
-          <p>You are seated. Enter to join this table, or use Play in Browser at the top for a full monitor.</p>
+          <p>
+            Enter Table for in-world cars and multiplayer. Solo vs computer works in this browser
+            without entering — the track stays idle until you Enter and start Solo from the lobby.
+          </p>
           <label>
             Display name
             <input value={displayName} onChange={(e) => onNameChange(e.target.value)} />
           </label>
+          <label>
+            AI opponents
+            <select
+              value={aiCount}
+              onChange={(e) => onAiCountChange(Number(e.target.value))}
+              disabled={busy}
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+          </label>
           {!boot.slCap && (
             <p className="muted">
               No table HTTP link (<code>sl_cap</code>) yet — cars/screens will not update until the
-              table finishes HTTP-IN setup. Wait a few seconds, or stand and sit again.
+              table finishes HTTP-IN setup. Wait a few seconds, or stand and sit again. You can still
+              race the computer in this browser.
             </p>
           )}
           <button
@@ -145,6 +161,17 @@ export function SlTableScreens({
             }}
           >
             Enter Table
+          </button>
+          <button
+            className="btn secondary"
+            disabled={busy}
+            onClick={() => {
+              setErr('')
+              void onStartSolo()
+              setStatus('Browser-only race vs AI — table not locked.')
+            }}
+          >
+            Play Solo vs AI
           </button>
           {err && <p className="sl-error">{err}</p>}
           {status && <p className="muted">{status}</p>}
@@ -202,11 +229,12 @@ export function SlTableScreens({
                 setBusy(true)
                 setErr('')
                 try {
-                  if (!boot.slCap) throw new Error('Table HTTP-IN required (missing sl_cap in HUD URL)')
-                  const players = 1 + Math.max(1, Math.min(3, aiCount))
-                  const st = await tableClaimSolo(boot.slCap, boot.uid, boot.seat, players)
-                  setTable(st)
-                  if (!st.ok) throw new Error(st.error || 'Cannot start solo')
+                  if (boot.slCap) {
+                    const players = 1 + Math.max(1, Math.min(3, aiCount))
+                    const st = await tableClaimSolo(boot.slCap, boot.uid, boot.seat, players)
+                    setTable(st)
+                    if (!st.ok) throw new Error(st.error || 'Cannot start solo')
+                  }
                   await onStartSolo()
                 } catch (e) {
                   setErr(e instanceof Error ? e.message : 'Solo failed')

@@ -7,7 +7,7 @@ integer USE_DEV = FALSE;
 string WEB_URL_PROD = "https://feudalism-dev.github.io/RoadTrip/";
 string WEB_URL_DEV = "https://feudalism-dev.github.io/RoadTrip/";
 // Bump when GitHub Pages deploys so MoAP reloads.
-integer HUD_PAGE_ASSET_REV = 6;
+integer HUD_PAGE_ASSET_REV = 7;
 
 integer HUD_FACE = 4;
 integer HUD_MEDIA_PIXELS = 1024;
@@ -177,7 +177,7 @@ integer pollMediaHandoff()
         {
             gParked = TRUE;
             string playUrl = sessionHome(FALSE, "browser");
-            llLoadURL(gWearer, "Play Road Trip in your web browser — same table seat.", playUrl);
+            llLoadURL(gWearer, "Play Road Trip in your web browser. Solo vs computer works here; multiplayer still uses this table.", playUrl);
             applyMoap(TRUE);
             llOwnerSay("Road Trip HUD parked. Play in your browser, or Return to HUD from the parked screen.");
         }

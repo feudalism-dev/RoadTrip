@@ -1,6 +1,6 @@
 # Road Trip
 
-Cross-country 1000-mile card race for the browser — classic strategic depth, solo AI, and PeerJS multiplayer.
+Cross-country 1000-mile card race — classic strategic depth, solo vs computer in any browser, and table-only multiplayer in Second Life.
 
 **Stack:** React + TypeScript + Vite  
 **Host:** GitHub Pages (free)  
@@ -25,8 +25,9 @@ npm run preview
 
 ## Multiplayer
 
-Create Room → share the 5-character code → friends Join Room → Ready → Host Start Match.  
-Uses PeerJS over the public broker (no paid backend).
+Multiplayer is **table-only** in Second Life: sit, Enter Table, then Create or Join. Friends at the same table Ready → Host Start Match. Uses PeerJS over the public broker (no paid backend).
+
+Solo vs computer works on this site (or Play in Browser from the HUD) whether or not you are seated.
 
 ## GitHub Pages
 

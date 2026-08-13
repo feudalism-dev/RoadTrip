@@ -1,12 +1,13 @@
 # Multiplayer
 
-Road Trip online lobby uses **PeerJS** (free public broker). No paid server.
+Road Trip multiplayer is **table-only** in Second Life. The public web client is solo vs computer. Match traffic uses **PeerJS** (free public broker). No paid server.
 
-**Capacity:** 2–4 players. A 5th join is rejected (`Room full`).
+**Capacity:** 2–4 players at one table. A 5th join is rejected (`Room full`).
 
-1. Host: Multiplayer Lobby → Create Room → share code
-2. Guests: Join with code → Ready
-3. Host: Start Match
+1. Sit at the table → Enter Table
+2. Host: Create Multiplayer Game → share code with seated Actives
+3. Guests: Join → Ready
+4. Host: Start Match
 
 Host is authoritative (applies moves, broadcasts state).
 

@@ -7,7 +7,7 @@
 | **AVsitter** | Sit poses only (`90070` / `90065`). Does **not** attach the HUD. |
 | **Table LSL** | Roster, **rezzes HUD** from inventory, one-game lock, HTTP-IN |
 | **HUD LSL** | Experience **temp-attach** → set MOAP URL (Pages) |
-| **MOAP (React)** | Enter Table → Active; Solo / Create / Join; PeerJS play |
+| **MOAP (React)** | Solo vs AI anytime; Enter Table for in-world cars + MP Create/Join |
 | **PeerJS** | Browser↔browser match traffic (not via the table) |
 
 ```
@@ -22,11 +22,13 @@ Browsers → PeerJS for multiplayer moves
 
 ## Hard rules
 
-1. **Sit ≠ Active.** HUD attach ≠ playable. Player must click **Enter Table**.
-2. **One table, one game.** At most one Solo or one MP match (or its lobby) per table.
-3. **MP only among Actives** who Create/Join that match. Non-joiners wait for the next game.
-4. **Post-game:** first Active to **Create** wins host (no sticky host).
-5. **Channels:** table-scoped bus + `llRegionSayTo` + `uid` in payload (no cross-table crosstalk).
+1. **Sit ≠ Active.** HUD attach ≠ playable for table lock / track / MP. Player must click **Enter Table**.
+2. **Solo vs computer** works in the HUD browser or a real browser **with or without** sitting. Browser-only solo does not lock the table or move cars. Enter + Play Solo vs AI claims the table and drives the track.
+3. **Multiplayer is table-only.** Create/Join require Active players at that table. There is no public web lobby.
+4. **One table, one game.** At most one claimed Solo or one MP match (or its lobby) per table.
+5. **MP only among Actives** who Create/Join that match. Non-joiners wait for the next game.
+6. **Post-game:** first Active to **Create** wins host (no sticky host).
+7. **Channels:** table-scoped bus + `llRegionSayTo` + `uid` in payload (no cross-table crosstalk).
 
 ## LSL ↔ LSL (chat)
 

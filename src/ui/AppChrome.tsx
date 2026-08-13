@@ -49,7 +49,7 @@ export function AppChrome({ slBoot, parked, roomCode, onStatus }: Props) {
         <button
           type="button"
           className="chrome-browser-btn"
-          title="Same table seat and track — play on a real browser instead of this HUD"
+          title="Open a real browser — solo vs computer works with or without the table; multiplayer stays at this table"
           onClick={() => {
             void openSeatedBrowser(slBoot!, roomCode).then((how) => {
               onStatus?.(

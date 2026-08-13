@@ -347,9 +347,10 @@ function AppInner() {
           <button className="btn primary" onClick={() => setScreen('soloSetup')}>
             Play Solo vs AI
           </button>
-          <button className="btn secondary" onClick={() => setScreen('lobby')}>
-            Multiplayer Lobby
-          </button>
+          <p className="muted">
+            Multiplayer is only at a Road Trip table in Second Life. Sit, Enter Table, then Create or
+            Join.
+          </p>
           <button className="btn ghost" onClick={() => setScreen('help')}>
             How to Play
           </button>
@@ -425,13 +426,34 @@ function AppInner() {
     )
   }
 
+  if (screen === 'lobby' && !state && !slBoot?.slCap) {
+    return wrap(
+      <div className="shell-menu">
+        <div className="menu-card">
+          <p className="brand-kicker">Multiplayer</p>
+          <h2>Sit at a table</h2>
+          <p>
+            Multiplayer only runs from a Road Trip table in Second Life. Sit, Enter Table, then Create
+            or Join. Solo vs computer works in this browser anytime.
+          </p>
+          <button className="btn primary" onClick={() => setScreen('soloSetup')}>
+            Play Solo vs AI
+          </button>
+          <button className="btn ghost" onClick={() => setScreen('menu')}>
+            Back
+          </button>
+        </div>
+      </div>,
+    )
+  }
+
   if (screen === 'lobby' && !state) {
     return wrap(
       <div className="shell-menu">
         <div className="menu-card">
           <p className="brand-kicker">Multiplayer</p>
           <h2>Multiplayer Lobby</h2>
-          <p className="muted">2–4 players. Room fills at 4.</p>
+          <p className="muted">2–4 players at this table. Room fills at 4.</p>
           <label>
             Driver name
             <input value={name} onChange={(e) => setName(e.target.value)} />
