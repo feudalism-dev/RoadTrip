@@ -60,6 +60,7 @@ export function GameBoard({
     '--asset-wood': `url(${assets.wood})`,
     '--asset-highway': `url(${assets.highway})`,
     '--asset-card-back': `url(${assets.cardBack})`,
+    '--asset-plaque': `url(${assets.plaque})`,
   } as CSSProperties
 
   const drawHint =

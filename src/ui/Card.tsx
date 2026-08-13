@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
-import { useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 import type { CardId } from '../core/cards'
 import { CardCategory, getCard } from '../core/cards'
+import { cardFaceUrl } from './assets'
 import { cardVisual } from './cardMeta'
 import { playerIndexAtPoint } from './gameHelpers'
 import { Tooltip } from './Tooltip'
@@ -63,17 +64,37 @@ export function Card({
 
   const def = !faceDown && id !== undefined ? getCard(id) : null
   const visual = !faceDown && id !== undefined ? cardVisual(id) : null
+  const faceSrc = !faceDown && id !== undefined ? cardFaceUrl(id) : null
+  const [faceOk, setFaceOk] = useState(false)
+
+  useEffect(() => {
+    setFaceOk(false)
+  }, [faceSrc])
 
   const body: ReactNode = faceDown || !def || !visual ? (
     <div className="pcard-back" aria-hidden />
   ) : (
     <>
-      <div className="pcard-top">
-        <span className="pcard-icon">{visual.icon}</span>
-        <span className="pcard-cat">{CAT_LABEL[def.category]}</span>
-      </div>
-      <div className="pcard-name">{def.name}</div>
-      <div className="pcard-blurb">{visual.blurb}</div>
+      {faceSrc && (
+        <img
+          className={faceOk ? 'pcard-art is-on' : 'pcard-art'}
+          src={faceSrc}
+          alt=""
+          draggable={false}
+          onLoad={() => setFaceOk(true)}
+          onError={() => setFaceOk(false)}
+        />
+      )}
+      {!faceOk && (
+        <>
+          <div className="pcard-top">
+            <span className="pcard-icon">{visual.icon}</span>
+            <span className="pcard-cat">{CAT_LABEL[def.category]}</span>
+          </div>
+          <div className="pcard-name">{def.name}</div>
+          <div className="pcard-blurb">{visual.blurb}</div>
+        </>
+      )}
       {legal && <span className="pcard-can">PLAY</span>}
       {badge && <span className="pcard-badge">{badge}</span>}
     </>
@@ -142,6 +163,7 @@ export function Card({
             selected ? 'is-selected' : '',
             dimmed ? 'is-dim' : '',
             faceDown ? 'is-back' : '',
+            faceOk ? 'has-art' : '',
             draggablePlay ? 'is-slideable' : '',
             className,
           ]

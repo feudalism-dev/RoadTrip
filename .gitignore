@@ -16,3 +16,5 @@ Builds
 *.csproj
 *.sln
 .vs
+__pycache__/
+*.pyc

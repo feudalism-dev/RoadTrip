@@ -98,10 +98,10 @@ Small brass highway-shield plaque on solid chroma key green #00FF00, no ground s
 
 **Purpose:** World-class playable cards. One face per card. Keep icon + name readable at 72×102. Same layout every time: cream margin, category ribbon top, big central motif, name band bottom. **Daylight cross-country illustrations.**
 
-Shared prefix for every face prompt (prepend it):
+Shared prefix for every card-front prompt (prepend it). **Do not say “face” or “portrait”** — Krea-2 reads those as a human headshot.
 
 ```
-Playing card face, portrait 2:3, flat printed board-game card, cream paper stock, 6mm cream border, no hands holding the card, no table, no 3D perspective, sharp centered illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes
 ```
 
 Then the unique motif:
@@ -133,6 +133,149 @@ Then the unique motif:
 | `card-face-puncture-proof.png` | Puncture-Proof | `armored tire crest, blue ribbon SAFETY, title PUNCTURE-PROOF` |
 | `card-face-fast-lane.png` | Fast Lane | `HOV diamond lane crest, blue ribbon SAFETY, title FAST LANE` |
 | `card-face-gps-lock.png` | GPS Lock | `compass locked to north crest, blue ribbon SAFETY, title GPS LOCK` |
+
+### Inventory after the crash (do not auto-generate)
+
+**Keep** (object art, no people) — leave these in `public/assets/cards/`:
+
+| File | Notes |
+|------|--------|
+| `card-face-miles-25.png` | Mile marker; sign has some gibberish letters but 25 + MILES read. Optional polish later. |
+| `card-face-miles-50.png` | Green 50 mile sign + prairie |
+| `card-face-miles-75.png` | Green 75 miles sign + canyon |
+| `card-face-miles-100.png` | Green 100 + pavement numerals |
+| `card-face-miles-200.png` | Green 200 mile sign |
+| `card-face-accident.png` | Windshield + hazard stripes (second-prompt regen) |
+| `card-face-drive.png` | Green light + GO + REMEDY |
+| `card-face-traffic-clear.png` | Empty sunlit highway |
+
+**Redo or missing** — 17 cards. First-batch files are headshots of the same guy; three safeties never wrote:
+
+| File | Why |
+|------|-----|
+| `card-face-red-light.png` | Tiny face inset on the HAZARD bar |
+| `card-face-out-of-gas.png` | Portrait |
+| `card-face-flat-tire.png` | Portrait |
+| `card-face-speed-limit.png` | Portrait |
+| `card-face-traffic-jam.png` | Portrait |
+| `card-face-gps-error.png` | Portrait |
+| `card-face-repairs.png` | Portrait |
+| `card-face-gasoline.png` | Portrait |
+| `card-face-spare-tire.png` | Portrait |
+| `card-face-end-of-limit.png` | Portrait |
+| `card-face-nav-fix.png` | Portrait |
+| `card-face-emergency-vehicle.png` | Portrait |
+| `card-face-driving-ace.png` | Portrait |
+| `card-face-extra-tank.png` | Portrait |
+| `card-face-puncture-proof.png` | **Missing** |
+| `card-face-fast-lane.png` | **Missing** |
+| `card-face-gps-lock.png` | **Missing** |
+
+768×1088. Paste **one full prompt** per job (prefix already baked in). Never use the words *face* or *portrait*.
+
+**Red Light** → `card-face-red-light.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, overhead traffic signal glowing red over a sunlit empty intersection, no cars with drivers visible, no inset photos, red category ribbon HAZARD, title RED LIGHT
+```
+
+**Out of Gas** → `card-face-out-of-gas.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, close-up empty fuel gauge with needle on E, dashboard instrument only, red category ribbon HAZARD, title OUT OF GAS
+```
+
+**Flat Tire** → `card-face-flat-tire.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, deflated black car tire slumped on sun-baked asphalt, object only, red category ribbon HAZARD, title FLAT TIRE
+```
+
+**Speed Limit** → `card-face-speed-limit.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, white rectangular SPEED LIMIT 50 road sign centered in daylight, object only, red category ribbon HAZARD, title SPEED LIMIT
+```
+
+**Traffic Jam** → `card-face-traffic-jam.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, dense pack of cars on a bright afternoon interstate seen from above, windshields empty, no drivers, red category ribbon HAZARD, title TRAFFIC JAM
+```
+
+**GPS Error** → `card-face-gps-error.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, broken navigation arrow glitch icon on a GPS screen, object only, red category ribbon HAZARD, title GPS ERROR
+```
+
+**Repairs** → `card-face-repairs.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, chrome wrench lying on a sunlit workbench, tool only, amber category ribbon REMEDY, title REPAIRS
+```
+
+**Gasoline** → `card-face-gasoline.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, red fuel nozzle at a sunny roadside pump, object only, empty station, amber category ribbon REMEDY, title GASOLINE
+```
+
+**Spare Tire** → `card-face-spare-tire.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, mounted spare tire on a chrome rim, object only, amber category ribbon REMEDY, title SPARE TIRE
+```
+
+**End of Limit** → `card-face-end-of-limit.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, white SPEED LIMIT sign with a bold red diagonal slash, object only, amber category ribbon REMEDY, title END OF LIMIT
+```
+
+**Navigation Fix** → `card-face-nav-fix.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, locked GPS lock-on arrow icon on a navigation screen, object only, amber category ribbon REMEDY, title NAV FIX
+```
+
+**Emergency Vehicle** → `card-face-emergency-vehicle.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, white and gold safety crest with a siren motif, emblem only, blue category ribbon SAFETY, title EMERGENCY VEHICLE
+```
+
+**Driving Ace** → `card-face-driving-ace.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, gold winged steering-wheel crest, emblem only, blue category ribbon SAFETY, title DRIVING ACE
+```
+
+**Extra Tank** → `card-face-extra-tank.png`
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, reserve jerry-can crest, emblem only, blue category ribbon SAFETY, title EXTRA TANK
+```
+
+**Puncture-Proof** → `card-face-puncture-proof.png` *(file does not exist yet)*
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, armored tire crest, emblem only, blue category ribbon SAFETY, title PUNCTURE-PROOF
+```
+
+**Fast Lane** → `card-face-fast-lane.png` *(file does not exist yet)*
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, HOV diamond lane crest, emblem only, blue category ribbon SAFETY, title FAST LANE
+```
+
+**GPS Lock** → `card-face-gps-lock.png` *(file does not exist yet)*
+
+```
+Front of a printed board-game playing card, vertical 2:3 layout, flat graphic illustration of the card itself, cream paper stock, 6mm cream margin, motif and title only, no people, no portraits, no human faces, no characters, no hands holding the card, no table, no 3D perspective, sharp centered object illustration, American cross-country road-trip theme in bright daylight, high contrast, readable at small size, no extra captions beyond the specified title, no night scenes, compass locked to north crest, emblem only, blue category ribbon SAFETY, title GPS LOCK
+```
+
+Save each PNG as the filename above into `public/assets/cards/`.
 
 ---
 

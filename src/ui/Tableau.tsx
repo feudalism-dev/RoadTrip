@@ -42,7 +42,7 @@ export function Tableau({ state, playerIndex, localIndex, selectedAsTarget, onSe
       onClick={!mine ? onSelectTarget : undefined}
     >
       <header className="tableau-head">
-        <div>
+        <div className="tableau-id">
           <span className="tableau-who">{mine ? 'YOU' : 'OPPONENT'}</span>
           <h3>{p.displayName}</h3>
         </div>

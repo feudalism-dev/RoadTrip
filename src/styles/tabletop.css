@@ -144,10 +144,13 @@ select {
   display: grid;
   place-items: center;
   padding: 1.5rem;
-  background:
-    radial-gradient(ellipse at 50% -10%, rgba(255, 214, 102, 0.45), transparent 42%),
-    radial-gradient(ellipse at 80% 100%, rgba(74, 140, 90, 0.35), transparent 50%),
-    linear-gradient(180deg, #5ba3c9 0%, #87b8d4 28%, #f0c56e 62%, #c9843a 100%);
+  background-color: #3a7aa0;
+  background-image:
+    linear-gradient(180deg, rgba(18, 32, 40, 0.28), rgba(18, 28, 24, 0.42)),
+    var(--asset-hero, none);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
 }
 
 .menu-card {
@@ -604,6 +607,16 @@ select {
   margin-bottom: 0.4rem;
 }
 
+.tableau-id {
+  background-image: var(--asset-plaque, none);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: left center;
+  padding: 0.4rem 1.1rem 0.45rem 0.85rem;
+  min-width: 7.5rem;
+  min-height: 2.7rem;
+}
+
 .tableau-who {
   display: block;
   font-size: 0.65rem;
@@ -977,6 +990,26 @@ select {
   opacity: 0.78;
 }
 
+.pcard.has-art {
+  padding: 0;
+  background: #efe6d2;
+}
+
+.pcard-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  pointer-events: none;
+  display: none;
+}
+
+.pcard-art.is-on {
+  display: block;
+}
+
 .pcard.is-back,
 .pcard-back-only {
   background: transparent;
@@ -1202,6 +1235,15 @@ select {
   gap: 0.65rem;
   text-align: center;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.banner-burst {
+  width: 5.5rem;
+  height: 5.5rem;
+  object-fit: contain;
+  margin: 0 auto 0.15rem;
+  display: block;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
 }
 
 .banner-card h2 {

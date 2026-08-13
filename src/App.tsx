@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import './styles/tabletop.css'
 import {
   startSolo,
@@ -27,6 +27,7 @@ import { SlTableScreens } from './ui/SlTableScreens'
 import type { TableStatus } from './sl/tableApi'
 import { AppChrome } from './ui/AppChrome'
 import { ParkedHud } from './ui/ParkedHud'
+import { assets } from './ui/assets'
 
 type Screen = 'menu' | 'soloSetup' | 'lobby' | 'game' | 'help' | 'sl'
 
@@ -77,7 +78,7 @@ function AppInner() {
   const bump = () => setTick((t) => t + 1)
 
   const wrap = (node: ReactNode) => (
-    <div className="app-frame">
+    <div className="app-frame" style={{ '--asset-hero': `url(${assets.menuHero})` } as CSSProperties}>
       <AppChrome
         slBoot={slBoot}
         parked={Boolean(slBoot?.parked)}
@@ -537,6 +538,7 @@ function AppInner() {
     coupBanner = (
       <div className="banner-overlay">
         <div className="banner-card">
+          <img className="banner-burst" src={assets.counterBurst} alt="" />
           <h2>You were attacked!</h2>
           <p>Play your matching Safety for a Counter Attack, or take the hit.</p>
           <button
