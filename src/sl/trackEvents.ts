@@ -133,6 +133,22 @@ function wireOf(map: number[], playerIndex: number): number {
   return Math.min(4, Math.max(1, playerIndex + 1))
 }
 
+/** Furware set width; strip pipes so LSL parse stays 4 lanes. */
+export function sanitizeFwName(name: string): string {
+  return name.replace(/\|/g, ' ').trim().slice(0, 32)
+}
+
+/** NAMES|seat0|seat1|seat2|seat3 — Track keeps SL display names on occupied seats. */
+export function namesPipe(next: MatchState, map: number[]): string {
+  const labels = ['', '', '', '']
+  next.players.forEach((p, i) => {
+    const w = wireOf(map, i)
+    if (w < 1 || w > 4) return
+    labels[w - 1] = sanitizeFwName(p.displayName)
+  })
+  return ['NAMES', ...labels].join('|')
+}
+
 export function pipePayload(
   map: number[],
   event: string,
@@ -170,6 +186,7 @@ export function payloadsFromState(
 
   if (!prev) {
     out.push(pipePayload(map, 'GAME_START', 0, 0, 'NONE', 0, 0))
+    out.push(namesPipe(next, map))
     const cur = next.currentPlayer
     out.push(
       pipePayload(map, 'TURN_CHANGE', cur, cur, 'NONE', 0, next.players[cur]?.miles ?? 0),

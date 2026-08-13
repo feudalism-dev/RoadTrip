@@ -26,6 +26,7 @@ export type LocalControllers = {
 }
 
 const AI_DELAY_MS = 2800
+/** Keep in sync with RoadTrip_Track.lsl cpuNameForIndex (Furware CPU labels). */
 const AI_NAMES = ['Cruise Control', 'Night Owl', 'Road Hog'] as const
 
 export function startSolo(name: string, aiCount: number, difficulty: AiDifficulty): LocalControllers {

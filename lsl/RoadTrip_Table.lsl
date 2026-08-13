@@ -484,57 +484,41 @@ string statusJson(integer ok, string err)
     return j;
 }
 
-string seatsForMatchPlayers(key human, integer nPlayers)
+// Seat UUID pipe for Track START (empty field = vacant / AI lane).
+string seatUidPipe()
 {
-    // Human's AVsitter seat first, then unused seats for AI / extra lanes.
-    if (nPlayers < 1) nPlayers = 1;
-    if (nPlayers > MAX_SEATS) nPlayers = MAX_SEATS;
-
-    integer humanSeat = seatOf(human);
-    if (humanSeat < 0) humanSeat = 0;
-
-    string s = (string)(humanSeat + 1);
-    integer need = nPlayers - 1;
-    integer i;
-    for (i = 0; i < MAX_SEATS; i++)
-    {
-        if (need <= 0) jump done;
-        if (i == humanSeat) jump cont;
-        // Prefer empty chairs for AI cars.
-        if (llList2Key(gSeatAv, i) != NULL_KEY) jump cont;
-        s += "," + (string)(i + 1);
-        need--;
-        @cont;
-    }
-    // Fill any remaining slots even if occupied (edge case).
-    for (i = 0; i < MAX_SEATS; i++)
-    {
-        if (need <= 0) jump done;
-        if (i == humanSeat) jump cont2;
-        if (llSubStringIndex("," + s + ",", "," + (string)(i + 1) + ",") >= 0) jump cont2;
-        s += "," + (string)(i + 1);
-        need--;
-        @cont2;
-    }
-    @done;
-    return s;
-}
-
-string joinedSeatsCsv()
-{
-    // Wire seats 1–4 for Track (AVsitter seat i → player i+1).
     string s = "";
     integer i;
     for (i = 0; i < MAX_SEATS; i++)
     {
+        if (i) s += "|";
         key av = llList2Key(gSeatAv, i);
-        if (av == NULL_KEY) jump cont;
-        if (llListFindList(gJoined, [av]) < 0) jump cont;
-        if (s != "") s += ",";
-        s += (string)(i + 1);
-        @cont;
+        if (av != NULL_KEY) s += (string)av;
     }
     return s;
+}
+
+string matchStartPayload()
+{
+    // Only joined humans count as match seats.
+    string s = "match";
+    integer i;
+    for (i = 0; i < MAX_SEATS; i++)
+    {
+        s += "|";
+        key av = llList2Key(gSeatAv, i);
+        if (av != NULL_KEY && llListFindList(gJoined, [av]) >= 0) s += (string)av;
+    }
+    return s;
+}
+
+string soloStartPayload(key human, integer nPlayers)
+{
+    integer humanSeat = seatOf(human);
+    if (humanSeat < 0) humanSeat = 0;
+    if (nPlayers < 1) nPlayers = 1;
+    if (nPlayers > MAX_SEATS) nPlayers = MAX_SEATS;
+    return "solo|" + (string)nPlayers + "|" + (string)humanSeat + "|" + seatUidPipe();
 }
 
 integer finishReset()
@@ -552,9 +536,9 @@ integer finishReset()
         gHostUid = NULL_KEY;
         gRoomCode = "";
         gJoined = [uid];
-        string seats = seatsForMatchPlayers(uid, gPendingPlayers);
-        llMessageLinked(LINK_SET, TRACK_CMD_START, seats, NULL_KEY);
-        debug("TRACK_CMD_START (solo) seats=" + seats + " players=" + (string)gPendingPlayers);
+        string startMsg = soloStartPayload(uid, gPendingPlayers);
+        llMessageLinked(LINK_SET, TRACK_CMD_START, startMsg, NULL_KEY);
+        debug("TRACK_CMD_START (solo) " + startMsg);
         gPendingPlayers = 1;
         if (httpId != NULL_KEY) sendJsonp(httpId, cb, statusJson(TRUE, ""));
         return TRUE;
@@ -572,9 +556,9 @@ integer finishReset()
     if (action == "start")
     {
         gMode = MODE_MATCH;
-        string seats = joinedSeatsCsv();
-        llMessageLinked(LINK_SET, TRACK_CMD_START, seats, NULL_KEY);
-        debug("TRACK_CMD_START (match) seats=" + seats);
+        string startMsg = matchStartPayload();
+        llMessageLinked(LINK_SET, TRACK_CMD_START, startMsg, NULL_KEY);
+        debug("TRACK_CMD_START (match) " + startMsg);
         if (httpId != NULL_KEY) sendJsonp(httpId, cb, statusJson(TRUE, ""));
         return TRUE;
     }
