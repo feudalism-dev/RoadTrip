@@ -1,6 +1,6 @@
 # Road Trip — Design
 
-Night-drive modernization of Mille Bornes with classic depth (Drive, Coup Fourré, Speed Limit 25/50, Emergency Vehicle) plus modern pairs (Traffic Jam / GPS Error).
+Cross-country 1000-mile card race with classic depth (Drive, Counter Attack, Speed Limit 25/50, Emergency Vehicle) plus modern pairs (Traffic Jam / GPS Error). Daylight highway, travel-poster energy.
 
 **Runtime:** React + Vite + TypeScript in the browser (CEF 139+ / Chromium).  
 **Host:** GitHub Pages.  

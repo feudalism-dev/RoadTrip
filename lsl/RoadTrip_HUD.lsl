@@ -7,7 +7,7 @@ integer USE_DEV = FALSE;
 string WEB_URL_PROD = "https://feudalism-dev.github.io/RoadTrip/";
 string WEB_URL_DEV = "https://feudalism-dev.github.io/RoadTrip/";
 // Bump when GitHub Pages deploys so MoAP reloads.
-integer HUD_PAGE_ASSET_REV = 4;
+integer HUD_PAGE_ASSET_REV = 5;
 
 integer HUD_FACE = 4;
 integer HUD_MEDIA_PIXELS = 1024;
@@ -29,6 +29,7 @@ string gNameHint = "";
 integer gPendingAttach = FALSE;
 integer gPendingDetach = FALSE;
 integer gMoapPending = FALSE;
+integer gParked = FALSE;
 integer gResyncLeft = 0;
 string gLastHomeUrl = "";
 integer gHelloTicks = 0;
@@ -96,6 +97,26 @@ integer sayHello()
     return TRUE;
 }
 
+string sessionHome(integer parked, string client)
+{
+    string home = webBase()
+        + "?tableId=" + llEscapeURL(gTableId)
+        + "&seat=" + (string)gSeat
+        + "&uid=" + llEscapeURL((string)gWearer)
+        + "&name=" + llEscapeURL(gNameHint)
+        + "&rev=" + (string)HUD_PAGE_ASSET_REV;
+    home += "&sl_cap=" + llEscapeURL(gSlCap);
+    if (parked)
+    {
+        home += "&parked=1";
+    }
+    else if (client != "")
+    {
+        home += "&client=" + client;
+    }
+    return home;
+}
+
 integer applyMoap(integer force)
 {
     if (gWearer == NULL_KEY) return FALSE;
@@ -112,14 +133,9 @@ integer applyMoap(integer force)
         return FALSE;
     }
 
-    string base = webBase();
-    string home = base
-        + "?tableId=" + llEscapeURL(gTableId)
-        + "&seat=" + (string)gSeat
-        + "&uid=" + llEscapeURL((string)gWearer)
-        + "&name=" + llEscapeURL(gNameHint)
-        + "&rev=" + (string)HUD_PAGE_ASSET_REV;
-    home += "&sl_cap=" + llEscapeURL(gSlCap);
+    string client = "hud";
+    if (gParked) client = "";
+    string home = sessionHome(gParked, client);
 
     // Skip clear/set when session params unchanged (avoids MoAP thrash).
     if (!force && home == gLastHomeUrl) return FALSE;
@@ -148,6 +164,36 @@ integer applyMoap(integer force)
     ]);
     gLastHomeUrl = home;
     return TRUE;
+}
+
+integer pollMediaHandoff()
+{
+    list existing = llGetLinkMedia(LINK_THIS, HUD_FACE, [PRIM_MEDIA_CURRENT_URL]);
+    string cur = llList2String(existing, 0);
+    if (cur == "") return FALSE;
+    if (llSubStringIndex(cur, "action=browser") >= 0)
+    {
+        if (!gParked)
+        {
+            gParked = TRUE;
+            string playUrl = sessionHome(FALSE, "browser");
+            llLoadURL(gWearer, "Play Road Trip in your web browser — same table seat.", playUrl);
+            applyMoap(TRUE);
+            llOwnerSay("Road Trip HUD parked. Play in your browser, or Return to HUD from the parked screen.");
+        }
+        return TRUE;
+    }
+    if (llSubStringIndex(cur, "action=hud") >= 0)
+    {
+        if (gParked)
+        {
+            gParked = FALSE;
+            applyMoap(TRUE);
+            llOwnerSay("Road Trip HUD restored.");
+        }
+        return TRUE;
+    }
+    return FALSE;
 }
 
 integer storeReadyFields(string msg)
@@ -209,7 +255,8 @@ integer handleReadyWhileWorn(string msg)
     }
     gMoapPending = FALSE;
     // First load or real param change only — ignore periodic identical READY.
-    if (dirty || gLastHomeUrl == "") applyMoap(TRUE);
+    // Do not unpark if the wearer is playing in an external browser.
+    if (!gParked && (dirty || gLastHomeUrl == "")) applyMoap(TRUE);
     return TRUE;
 }
 
@@ -432,7 +479,7 @@ default
         }
         else
         {
-            llSetTimerEvent(30.0);
+            llSetTimerEvent(4.0);
         }
 
         if (gMoapPending && gTableId != "" && gSlCap != "")
@@ -447,6 +494,8 @@ default
             gResyncLeft = 0;
             applyMoap(TRUE);
         }
+        pollMediaHandoff();
+        if (gParked) llSetTimerEvent(3.0);
     }
 
     changed(integer change)

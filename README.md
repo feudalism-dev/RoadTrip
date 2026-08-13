@@ -1,6 +1,6 @@
 # Road Trip
 
-Modern Mille Bornes for the browser — night-highway dashboard, classic strategic depth, solo AI, and PeerJS multiplayer.
+Cross-country 1000-mile card race for the browser — classic strategic depth, solo AI, and PeerJS multiplayer.
 
 **Stack:** React + TypeScript + Vite  
 **Host:** GitHub Pages (free)  

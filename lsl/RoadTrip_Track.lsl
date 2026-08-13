@@ -306,7 +306,7 @@
     string cpuNameForIndex(integer n)
     {
         if (n == 0) return "Cruise Control";
-        if (n == 1) return "Night Owl";
+        if (n == 1) return "Postcard";
         if (n == 2) return "Road Hog";
         return "CPU " + (string)(n + 1);
     }

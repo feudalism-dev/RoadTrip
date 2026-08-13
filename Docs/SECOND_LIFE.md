@@ -116,6 +116,12 @@ Attract cycles panorama A then B on a timer. `GAME_OVER` shows place textures (`
 | `sl_cap` | Table HTTP-IN URL |
 | `name` | SL display name (hint) |
 | `rev` / `cb` | Cache bust |
+| `client` | `hud` (MoAP) or `browser` (external Chromium) |
+| `parked` | `1` — HUD standby while the wearer plays in a browser |
+| `action` | `browser` / `hud` — HUD LSL watches media URL, then `llLoadURL` + park/restore |
+| `room` | Optional PeerJS room code to resume a lobby handoff |
+
+**Play in Browser:** only shown when the page has table `uid` + `sl_cap` (seated HUD/table session). The HUD copies the session URL (same seat, cap, and track events), then navigates to `action=browser`. HUD LSL calls `llLoadURL` and parks MoAP on `parked=1` so two clients do not emit for one seat. “Return to HUD” sets `action=hud`.
 
 Base URL is **hardcoded in HUD LSL**. `HOME_URL` must match session URL (minus bust) so CEF home doesn’t drop params.
 

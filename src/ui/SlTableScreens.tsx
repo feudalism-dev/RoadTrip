@@ -106,11 +106,12 @@ export function SlTableScreens({
     return (
       <div className="shell-menu">
         <div className="menu-card">
+          <p className="brand-kicker">Table · Seat {boot.seat >= 0 ? boot.seat + 1 : '?'}</p>
           <h1>ROAD TRIP</h1>
           <p className="sl-meta">
-            Seat {boot.seat >= 0 ? boot.seat + 1 : '?'} · Table {boot.tableId.slice(0, 8)}…
+            Table {boot.tableId.slice(0, 8)}…
           </p>
-          <p>HUD media is up. Click below to prove you can use it and enter this table.</p>
+          <p>You are seated. Enter to join this table, or use Play in Browser at the top for a full monitor.</p>
           <label>
             Display name
             <input value={displayName} onChange={(e) => onNameChange(e.target.value)} />
@@ -155,6 +156,7 @@ export function SlTableScreens({
   return (
     <div className="shell-menu">
       <div className="menu-card wide">
+        <p className="brand-kicker">Table lobby</p>
         <h2>Table Lobby</h2>
         <p className="sl-meta">
           Mode: <strong>{mode}</strong> · Active {activeCount} · Seated {table?.seatedCount ?? '?'}

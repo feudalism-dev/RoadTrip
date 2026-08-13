@@ -25,6 +25,8 @@ import { emitFromState, buildWireMap } from './sl/trackEvents'
 import { cloneState } from './core/state'
 import { SlTableScreens } from './ui/SlTableScreens'
 import type { TableStatus } from './sl/tableApi'
+import { AppChrome } from './ui/AppChrome'
+import { ParkedHud } from './ui/ParkedHud'
 
 type Screen = 'menu' | 'soloSetup' | 'lobby' | 'game' | 'help' | 'sl'
 
@@ -43,7 +45,7 @@ function AppInner() {
   const [name, setName] = useState(slBoot?.name || 'You')
   const [aiCount, setAiCount] = useState(1)
   const [difficulty, setDifficulty] = useState<AiDifficulty>('normal')
-  const [roomInput, setRoomInput] = useState('')
+  const [roomInput, setRoomInput] = useState(slBoot?.room || '')
   const [local, setLocal] = useState<LocalControllers | null>(null)
   const [peer, setPeer] = useState<PeerSession | null>(null)
   const [tick, setTick] = useState(0)
@@ -73,6 +75,21 @@ function AppInner() {
   const actionLog = local?.log ?? (state ? [state.lastMessage] : [])
 
   const bump = () => setTick((t) => t + 1)
+
+  const wrap = (node: ReactNode) => (
+    <div className="app-frame">
+      <AppChrome
+        slBoot={slBoot}
+        parked={Boolean(slBoot?.parked)}
+        roomCode={peer?.roomCode || slBoot?.room}
+        onStatus={(msg) => {
+          setStatus(msg)
+          push(msg)
+        }}
+      />
+      <div className="app-scale">{node}</div>
+    </div>
+  )
 
   // Solo client or PeerJS host → physical track events (guests never emit)
   useEffect(() => {
@@ -228,8 +245,27 @@ function AppInner() {
     setScreen(slBoot ? 'sl' : 'menu')
   }
 
+  if (slBoot?.parked) {
+    return wrap(<ParkedHud boot={slBoot} />)
+  }
+
+  if (slBoot?.action === 'browser' && slBoot.client !== 'browser') {
+    return wrap(
+      <div className="shell-menu">
+        <div className="menu-card">
+          <p className="brand-kicker">Second Life</p>
+          <h2>Opening your browser</h2>
+          <p>
+            Confirm the Second Life dialog to play on a real monitor. This HUD will park so you do
+            not run two clients for the same seat.
+          </p>
+        </div>
+      </div>,
+    )
+  }
+
   if (screen === 'sl' && slBoot && !state) {
-    return (
+    return wrap(
       <SlTableScreens
         boot={slBoot}
         displayName={name}
@@ -292,19 +328,20 @@ function AppInner() {
         peerSeats={peer?.seats}
         isPeerHost={peer?.isHost}
         onPeerReady={() => peer?.setReady(true)}
-      />
+      />,
     )
   }
 
   if (screen === 'menu') {
-    return (
+    return wrap(
       <div className="shell-menu">
         <div className="menu-card">
+          <p className="brand-kicker">Cross-country · 1000 miles</p>
           <h1>ROAD TRIP</h1>
           <p>
-            A modern night-drive take on Mille Bornes.
+            A tabletop race across the country.
             <br />
-            Race exactly 1,000 miles across the table.
+            Drive, sabotage, and Counter Attack your way to 1000 miles.
           </p>
           <button className="btn primary" onClick={() => setScreen('soloSetup')}>
             Play Solo vs AI
@@ -316,14 +353,15 @@ function AppInner() {
             How to Play
           </button>
         </div>
-      </div>
+      </div>,
     )
   }
 
   if (screen === 'help') {
-    return (
+    return wrap(
       <div className="shell-menu">
         <div className="menu-card wide">
+          <p className="brand-kicker">Rules</p>
           <h2>How to Play</h2>
           <ol className="help-list">
             <li>
@@ -331,23 +369,29 @@ function AppInner() {
             </li>
             <li>
               Opponents hit you with red hazards — matching remedies/safeties clear them and put you back on the road
-              (no second Drive needed after a fix).
+              (no second Drive needed after a fix). If you hold the matching Safety when hit, play it as a
+              <strong> Counter Attack</strong> and steal the turn.
             </li>
-            <li>On your turn: double-click Draw or Discard to take a card (auto-draws if discard is empty).</li>
-            <li>Then double-click a lit card to play, slide a hazard onto an opponent, or slide down to discard.</li>
+            <li>On your turn: tap Draw or Discard to take a card (auto-draws if discard is empty).</li>
+            <li>
+              Tap a glowing card, then Play — or slide a hazard onto an opponent, or slide down / tap Discard to dump
+              it.
+            </li>
+            <li>Use UI size at the top if the HUD feels too large or too small for your monitor.</li>
           </ol>
           <button className="btn secondary" onClick={() => setScreen('menu')}>
             Back
           </button>
         </div>
-      </div>
+      </div>,
     )
   }
 
   if (screen === 'soloSetup') {
-    return (
+    return wrap(
       <div className="shell-menu">
         <div className="menu-card">
+          <p className="brand-kicker">Solo</p>
           <h2>Solo Road Trip</h2>
           <label>
             Driver name
@@ -376,14 +420,15 @@ function AppInner() {
             Back
           </button>
         </div>
-      </div>
+      </div>,
     )
   }
 
   if (screen === 'lobby' && !state) {
-    return (
+    return wrap(
       <div className="shell-menu">
         <div className="menu-card">
+          <p className="brand-kicker">Multiplayer</p>
           <h2>Multiplayer Lobby</h2>
           <p className="muted">2–4 players. Room fills at 4.</p>
           <label>
@@ -477,11 +522,11 @@ function AppInner() {
             Back
           </button>
         </div>
-      </div>
+      </div>,
     )
   }
 
-  if (!state) return null
+  if (!state) return wrap(<div className="shell-menu" />)
 
   const myTurn = state.currentPlayer === localIndex && state.phase === MatchPhase.Playing && !aiThinking
   const myDraw = state.currentPlayer === localIndex && state.phase === MatchPhase.AwaitingDraw && !aiThinking
@@ -493,7 +538,7 @@ function AppInner() {
       <div className="banner-overlay">
         <div className="banner-card">
           <h2>You were attacked!</h2>
-          <p>Play your matching Safety for a Coup Fourré, or take the hit.</p>
+          <p>Play your matching Safety for a Counter Attack, or take the hit.</p>
           <button
             className="btn primary"
             onClick={() => {
@@ -505,7 +550,7 @@ function AppInner() {
               }
             }}
           >
-            Counter! (Coup Fourré)
+            Counter Attack
           </button>
           <button
             className="btn ghost"
@@ -537,7 +582,7 @@ function AppInner() {
     )
   }
 
-  return (
+  return wrap(
     <GameBoard
       state={state}
       localIndex={localIndex}
@@ -557,6 +602,6 @@ function AppInner() {
       onMenu={() => void leaveToMenu()}
       coupBanner={coupBanner}
       endOverlay={endOverlay}
-    />
+    />,
   )
 }

@@ -1,28 +1,31 @@
 /* Road Trip — immersive tabletop presentation */
 
 :root {
-  --felt: #1a4d3a;
-  --felt-deep: #0f3326;
-  --felt-light: #2a6b4f;
-  --wood: #5c3a1e;
-  --wood-light: #8b5a2b;
-  --wood-edge: #3d2412;
-  --cream: #f4ecd8;
-  --ink: #1a1208;
-  --gold: #d4a017;
-  --legal: #22c55e;
-  --danger: #ef4444;
-  --amber: #f59e0b;
-  --blue: #3b82f6;
-  --shadow: rgba(0, 0, 0, 0.45);
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-ui: 'Outfit', system-ui, sans-serif;
+  --felt: #12261f;
+  --felt-deep: #08140f;
+  --felt-light: #1c3d32;
+  --wood: #3a2818;
+  --wood-light: #6a4a2c;
+  --wood-edge: #24160c;
+  --cream: #f3ead6;
+  --ink: #140e08;
+  --gold: #e0b13a;
+  --gold-dim: rgba(224, 177, 58, 0.28);
+  --legal: #34d399;
+  --danger: #f87171;
+  --amber: #fbbf24;
+  --blue: #60a5fa;
+  --shadow: rgba(0, 0, 0, 0.55);
+  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-ui: 'Outfit', 'Segoe UI', system-ui, sans-serif;
   --card-w-sm: 58px;
   --card-h-sm: 82px;
   --card-w-md: 72px;
   --card-h-md: 102px;
   --card-w-lg: 92px;
   --card-h-lg: 130px;
+  --ui-scale: 1;
+  --chrome-h: 42px;
 }
 
 *,
@@ -39,8 +42,93 @@ body,
   height: 100%;
   font-family: var(--font-ui);
   color: var(--cream);
-  background: #0a1812;
+  background: #1a3a4a;
   overflow: hidden;
+}
+
+.app-frame {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-chrome {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.28rem 0.65rem;
+  min-height: var(--chrome-h);
+  background: linear-gradient(180deg, rgba(36, 72, 88, 0.96), rgba(28, 58, 70, 0.92));
+  border-bottom: 1px solid var(--gold-dim);
+  z-index: 40;
+}
+
+.scale-control {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.scale-label,
+.scale-pct,
+.chrome-note {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+  white-space: nowrap;
+}
+
+.scale-btn {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(243, 234, 214, 0.28);
+  background: rgba(243, 234, 214, 0.08);
+  color: var(--cream);
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.scale-slider {
+  width: min(140px, 28vw);
+  accent-color: var(--gold);
+}
+
+.chrome-browser-btn {
+  border: 1px solid var(--gold);
+  background: rgba(224, 177, 58, 0.12);
+  color: var(--gold);
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.app-scale {
+  flex: 1 1 auto;
+  min-height: 0;
+  zoom: var(--ui-scale, 1);
+  overflow: auto;
+}
+
+.brand-kicker {
+  margin: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.85;
 }
 
 button,
@@ -52,22 +140,26 @@ select {
 /* —— Menus —— */
 .shell-menu {
   min-height: 100%;
+  height: 100%;
   display: grid;
   place-items: center;
   padding: 1.5rem;
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(212, 160, 23, 0.12), transparent 50%),
-    radial-gradient(ellipse at 70% 80%, rgba(42, 107, 79, 0.35), transparent 55%),
-    linear-gradient(160deg, #0f3326 0%, #1a1208 55%, #0a1812 100%);
+    radial-gradient(ellipse at 50% -10%, rgba(255, 214, 102, 0.45), transparent 42%),
+    radial-gradient(ellipse at 80% 100%, rgba(74, 140, 90, 0.35), transparent 50%),
+    linear-gradient(180deg, #5ba3c9 0%, #87b8d4 28%, #f0c56e 62%, #c9843a 100%);
 }
 
 .menu-card {
-  width: min(420px, 100%);
-  padding: 1.75rem 1.5rem;
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(92, 58, 30, 0.92), rgba(61, 36, 18, 0.95));
-  border: 2px solid rgba(212, 160, 23, 0.35);
-  box-shadow: 0 24px 60px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  width: min(440px, 100%);
+  padding: 1.85rem 1.55rem;
+  border-radius: 20px;
+  background:
+    linear-gradient(165deg, rgba(46, 32, 18, 0.92), rgba(28, 22, 16, 0.94));
+  border: 1px solid rgba(224, 177, 58, 0.45);
+  box-shadow:
+    0 28px 70px rgba(40, 24, 8, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -136,9 +228,9 @@ select {
 }
 
 .btn.primary {
-  background: linear-gradient(180deg, #e8b923, #b8860b);
-  color: #1a1208;
-  box-shadow: 0 6px 18px rgba(212, 160, 23, 0.35);
+  background: linear-gradient(180deg, #f0c85a, #c4921c);
+  color: #140e08;
+  box-shadow: 0 8px 22px rgba(224, 177, 58, 0.28);
 }
 
 .btn.secondary {
@@ -191,11 +283,11 @@ select {
 .table-root {
   position: relative;
   height: 100%;
-  min-height: 100dvh;
+  min-height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 0.35rem;
-  padding: 0.5rem 0.65rem 0.25rem;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 0.28rem;
+  padding: 0.4rem 0.65rem 0.2rem;
   overflow: hidden;
 }
 
@@ -231,6 +323,7 @@ select {
 
 .board-top,
 .board-mid,
+.play-dock,
 .hand-fan,
 .log-drawer {
   position: relative;
@@ -468,19 +561,19 @@ select {
 /* —— Tableau —— */
 .tableau-board {
   position: relative;
-  background: linear-gradient(160deg, rgba(26, 18, 8, 0.55), rgba(10, 24, 18, 0.4));
-  border: 2px solid rgba(244, 236, 216, 0.18);
+  background: linear-gradient(165deg, rgba(12, 16, 20, 0.72), rgba(8, 20, 16, 0.55));
+  border: 1px solid rgba(243, 234, 214, 0.16);
   border-radius: 16px;
   padding: 0.65rem 0.75rem 0.75rem;
   min-width: min(100%, 320px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   overflow: visible;
 }
 
 .tableau-board.is-mine {
-  border-color: rgba(212, 160, 23, 0.45);
-  background: linear-gradient(160deg, rgba(92, 58, 30, 0.35), rgba(10, 24, 18, 0.45));
+  border-color: rgba(224, 177, 58, 0.5);
+  background: linear-gradient(165deg, rgba(42, 32, 18, 0.55), rgba(8, 16, 18, 0.55));
 }
 
 .tableau-board.is-foe {
@@ -730,8 +823,8 @@ select {
 
 .pcard {
   position: relative;
-  border: 3px solid #f8f1e0;
-  border-radius: 10px;
+  border: 2px solid #efe6d2;
+  border-radius: 11px;
   padding: 0.35rem 0.3rem 0.4rem;
   cursor: pointer;
   display: flex;
@@ -740,8 +833,9 @@ select {
   text-align: left;
   color: var(--ink);
   box-shadow:
-    0 4px 0 rgba(0, 0, 0, 0.25),
-    0 8px 16px rgba(0, 0, 0, 0.28);
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 4px 0 rgba(0, 0, 0, 0.22),
+    0 10px 18px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   user-select: none;
   -webkit-user-drag: none;
@@ -918,15 +1012,53 @@ select {
   }
 }
 
+/* —— Play dock (HUD-friendly primary actions) —— */
+.play-dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.4rem 0.1rem;
+}
+
+.play-coach {
+  margin: 0;
+  max-width: 46rem;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--gold);
+  text-shadow: 0 1px 2px #000;
+}
+
+.play-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.4rem;
+  align-items: center;
+}
+
+.play-actions .btn {
+  min-width: 7.5rem;
+  padding: 0.55rem 0.9rem;
+}
+
+.play-nudge {
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
 /* —— Hand fan —— */
 .hand-fan {
   position: relative;
-  height: 168px;
+  height: 150px;
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  padding-bottom: 1.6rem;
-  margin-top: 0.15rem;
+  padding-bottom: 1.35rem;
+  margin-top: 0;
 }
 
 .hand-rail {
@@ -973,7 +1105,7 @@ select {
 /* —— Toasts —— */
 .toast-stack {
   position: fixed;
-  top: 12px;
+  top: 52px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 200;
@@ -1050,13 +1182,12 @@ select {
 
 /* —— Overlays —— */
 .banner-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 150;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.58);
   padding: 1rem;
 }
 

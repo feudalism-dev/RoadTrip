@@ -308,9 +308,9 @@ function endTurn(state: MatchState): void {
 
 export function declineCoupFourre(state: MatchState): { ok: true } | { ok: false; error: string } {
   if (state.phase !== MatchPhase.AwaitingCoupFourre || !state.pending) {
-    return { ok: false, error: 'No Coup Fourré pending.' }
+    return { ok: false, error: 'No Counter Attack pending.' }
   }
-  state.lastMessage = `${state.players[state.pending.targetIndex]!.displayName} could not Coup Fourré.`
+  state.lastMessage = `${state.players[state.pending.targetIndex]!.displayName} could not Counter Attack.`
   state.pending = null
   state.phase = MatchPhase.Playing
   endTurn(state)
@@ -321,12 +321,12 @@ export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok
   if (state.phase === MatchPhase.Finished) return { ok: false, error: 'Match is finished.' }
 
   if (state.phase === MatchPhase.AwaitingCoupFourre) {
-    if (move.kind !== MoveKind.CoupFourre) return { ok: false, error: 'Waiting for Coup Fourré response.' }
+    if (move.kind !== MoveKind.CoupFourre) return { ok: false, error: 'Waiting for a Counter Attack.' }
     const pending = state.pending!
-    if (move.playerIndex !== pending.targetIndex) return { ok: false, error: 'Not your Coup Fourré.' }
+    if (move.playerIndex !== pending.targetIndex) return { ok: false, error: 'Not your Counter Attack.' }
     const me = state.players[move.playerIndex]!
     if (me.hand[move.handIndex] !== move.card) return { ok: false, error: 'Safety not in hand.' }
-    if (!safetyBlocksHazard(move.card, pending.hazard)) return { ok: false, error: 'Wrong safety for Coup Fourré.' }
+    if (!safetyBlocksHazard(move.card, pending.hazard)) return { ok: false, error: 'Wrong safety for Counter Attack.' }
 
     undoHazard(me, pending.hazard)
     state.discardPile.push(pending.hazard)
@@ -335,7 +335,7 @@ export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok
     state.coupFourreCount++
     state.pending = null
     state.currentPlayer = move.playerIndex
-    state.lastMessage = `${me.displayName} Coup Fourré! ${getCard(move.card).name} counter-thrust!`
+    state.lastMessage = `${me.displayName} Counter Attack! ${getCard(move.card).name}!`
     beginDrawPhase(state)
     return { ok: true }
   }
@@ -434,7 +434,7 @@ export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok
         coupDeadlinePlayer: target,
       }
       state.phase = MatchPhase.AwaitingCoupFourre
-      state.lastMessage = `${me.displayName} hit ${victim.displayName} with ${def.name}! Coup Fourré?`
+      state.lastMessage = `${me.displayName} hit ${victim.displayName} with ${def.name}! Counter Attack?`
       return { ok: true }
     }
     state.lastMessage = `${me.displayName} hit ${victim.displayName} with ${def.name}.`

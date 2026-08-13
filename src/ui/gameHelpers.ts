@@ -27,7 +27,7 @@ export type LocalControllers = {
 
 const AI_DELAY_MS = 2800
 /** Keep in sync with RoadTrip_Track.lsl cpuNameForIndex (Furware CPU labels). */
-const AI_NAMES = ['Cruise Control', 'Night Owl', 'Road Hog'] as const
+const AI_NAMES = ['Cruise Control', 'Postcard', 'Road Hog'] as const
 
 export function startSolo(name: string, aiCount: number, difficulty: AiDifficulty): LocalControllers {
   const cappedAi = Math.max(1, Math.min(aiCount, MAX_PLAYERS - 1))
@@ -217,11 +217,11 @@ export function whatShouldIDo(state: MatchState, localIndex: number): string {
   if (state.phase === MatchPhase.Finished) return 'The race is over.'
 
   if (state.phase === MatchPhase.AwaitingDraw && state.currentPlayer === localIndex) {
-    return 'Double-click the Draw pile or the Discard pile to take a card.'
+    return 'Tap Draw deck or Take discard to take a card.'
   }
 
   if (state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === localIndex) {
-    return 'You were attacked. Press Counter! if you have the matching Safety, or Take the hit.'
+    return 'You were attacked. Press Counter Attack if you have the matching Safety, or Take the hit.'
   }
 
   if (state.currentPlayer !== localIndex) {
@@ -284,7 +284,7 @@ export function turnBanner(state: MatchState, localIndex: number, aiThinking: bo
   }
   if (state.phase === MatchPhase.AwaitingCoupFourre && state.pending) {
     const victim = state.players[state.pending.targetIndex]!
-    if (state.pending.targetIndex === localIndex) return 'You were attacked — Coup Fourré?'
+    if (state.pending.targetIndex === localIndex) return 'You were attacked — Counter Attack?'
     return `${victim.displayName} was attacked…`
   }
   if (aiThinking || state.currentPlayer !== localIndex) {

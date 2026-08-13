@@ -58,7 +58,7 @@ describe('RulesEngine', () => {
     expect(canPlayDistance(state, 0, CardId.Miles25)).toBe(true)
   })
 
-  it('coup fourre cancels hazard', () => {
+  it('counter attack cancels hazard', () => {
     const state = createMatch(['Alice', 'Bob'], [true, true], defaultConfig(15))
     const alice = state.players[0]!
     const bob = state.players[1]!

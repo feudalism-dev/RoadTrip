@@ -34,7 +34,7 @@ Not photoreal.
 
 **Critical Comfy rule — one scene per file:**  
 Never use words like *panel 1 of 4*, *mural*, *quadriptych*, *triptych*, *continues previous panel* in prompts — they cause **gutters / vertical slices inside one image**.  
-Each file must be a **single full-bleed scene**. For attract “panorama” sets, generate **four independent images** that only *feel* related (shared palette, horizon, night highway) — scenery-heavy on outer screens, optional shared motif or split wording on the middle ones.
+Each file must be a **single full-bleed scene**. For attract “panorama” sets, generate **four independent images** that only *feel* related (shared palette, horizon, sunny cross-country highway) — scenery-heavy on outer screens, optional shared motif or split wording on the middle ones.
 
 **Two energy levels:**
 
@@ -155,21 +155,21 @@ LSL idle loop: show set A on faces 0–3 together, later swap to set B together 
 
 **Miles / remedy / safety / system — use this stem:**
 
-> Comic book cover panel, 1024x560 landscape, bold ink outlines, night highway Road Trip game aesthetic, readable comic lettering, strong silhouette iconography, high contrast, carnival midway energy without clutter, no people faces, no photo realism,
+> Comic book cover panel, 1024x560 landscape, bold ink outlines, sunny cross-country highway Road Trip game aesthetic, readable comic lettering, strong silhouette iconography, high contrast, travel-poster energy without clutter, no people faces, no photo realism,
 
 ---
 
 ### 3.1 System & attract panoramas
 
-#### Panorama set A — “Night convoy” (four panels = one mural)
+#### Panorama set A — “Daylight convoy” (four panels = one mural)
 
-Generate as a **matched set**. Same prompt family; only the **panel role** and **what appears in frame** change. Shared: night highway, comic ink, teal/gold/crimson accents, continuous horizon line at the same height in every panel.
+Generate as a **matched set**. Same prompt family; only the **panel role** and **what appears in frame** change. Shared: sunny cross-country highway, comic ink, teal/gold/crimson accents, continuous horizon line at the same height in every panel.
 
 **ATTRACT_A1** (left — face 0)  
-`Comic book mural panel 1 of 4, 1024x560, leftmost segment of a continuous night highway scene, road and horizon continuing off the RIGHT edge only, pulp ink outlines, city lights starting on the left, small caption ROAD TRIP in corner, no text splash, no faces, matching horizon height for a quadriptych`
+`Comic book mural panel 1 of 4, 1024x560, leftmost segment of a continuous sunny cross-country highway scene, road and horizon continuing off the RIGHT edge only, pulp ink outlines, prairie and sky starting on the left, small caption ROAD TRIP in corner, no text splash, no faces, matching horizon height for a quadriptych`
 
 **ATTRACT_A2** (face 1)  
-`Comic book mural panel 2 of 4, 1024x560, CONTINUES the previous panel’s night highway to the right, same horizon height and palette, mid-pack race cars as silhouettes speeding rightward, road enters from LEFT edge and exits RIGHT edge, pulp comics style, no faces`
+`Comic book mural panel 2 of 4, 1024x560, CONTINUES the previous panel’s sunny highway to the right, same horizon height and palette, mid-pack race cars as silhouettes speeding rightward, road enters from LEFT edge and exits RIGHT edge, pulp comics style, no faces`
 
 **ATTRACT_A3** (face 2)  
 `Comic book mural panel 3 of 4, 1024x560, CONTINUES the convoy mural, same horizon and ink style, hazard icons as billboard gags along the roadside (flat tire sign, red light), road enters LEFT exits RIGHT, builds toward the finish, no faces`
@@ -193,7 +193,7 @@ Use the same “panel N of 4, continuous horizon, enters/exits edges” language
 **WAITING** — `Quiet comic panel, 1024x560, dim text WAITING, empty lane, low contrast`  
 **THINKING** — `Comic panel, 1024x560, caption THINKING…, dotted motion lines, soft amber`  
 **WINNER** — `Triumphant comic splash, 1024x560, huge outlined WINNER on a diagonal, gold checkered flags`  
-**GAME_OVER** — `Somber comic panel, 1024x560, heavy outlined GAME OVER, dark red-gray night highway`  
+**GAME_OVER** — `Somber comic panel, 1024x560, heavy outlined GAME OVER, overcast highway after the race`  
 **MATCH_START** — `Comic panel, 1024x560, bold GREEN LIGHT, traffic light green lamp blazing, race-start speed lines`
 
 ---
@@ -202,7 +202,7 @@ Use the same “panel N of 4, continuous horizon, enters/exits edges” language
 
 For each `N` in {25, 50, 75, 100, 200}:
 
-> `Comic book story panel, 1024x560, night highway, car speeding forward with motion lines, large outlined gold numerals N and caption N MILES, upbeat energy, horizontal readable type not a panic diagonal, ink outlines, no faces`
+> `Comic book story panel, 1024x560, sunny highway, car speeding forward with motion lines, large outlined gold numerals N and caption N MILES, upbeat energy, horizontal readable type not a panic diagonal, ink outlines, no faces`
 
 (200 can be a bit more dramatic — bigger numerals, more speed lines — still not HIT-style.)
 

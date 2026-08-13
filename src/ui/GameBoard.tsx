@@ -7,6 +7,7 @@ import { Tableau } from './Tableau'
 import { HandFan } from './HandFan'
 import { ActionLogDrawer } from './ActionLogDrawer'
 import { assets } from './assets'
+import { whatShouldIDo } from './gameHelpers'
 
 type Props = {
   state: MatchState
@@ -52,6 +53,8 @@ export function GameBoard({
   const me = state.players[localIndex]!
   const foes = state.players.map((p, i) => ({ p, i })).filter((x) => x.i !== localIndex)
   const discardTop = state.discardPile[state.discardPile.length - 1]
+  const selectedLegal = selected >= 0 && legalIndexes.has(selected)
+  const coach = whatShouldIDo(state, localIndex)
   const boardStyle = {
     '--asset-felt': `url(${assets.felt})`,
     '--asset-wood': `url(${assets.wood})`,
@@ -61,7 +64,7 @@ export function GameBoard({
 
   const drawHint =
     myDraw
-      ? 'Double-click Draw or Discard to take a card'
+      ? 'Tap Draw or Discard below — or tap the piles'
       : state.phase === MatchPhase.AwaitingDraw
         ? `${state.players[state.currentPlayer]!.displayName} is choosing a pile…`
         : null
@@ -74,7 +77,7 @@ export function GameBoard({
       <header className="board-top">
         <div className="brand-mark">
           <span>ROAD TRIP</span>
-          <small>Tabletop Race</small>
+          <small>1000-mile race</small>
         </div>
         <HighwayTracker state={state} localIndex={localIndex} />
         <button type="button" className="ghost-btn" onClick={onMenu}>
@@ -100,10 +103,13 @@ export function GameBoard({
           <div className="center-piles">
             <div
               className={`pile ${myDraw && state.drawPile.length ? 'is-hot' : ''}`}
+              onClick={() => {
+                if (myDraw && state.drawPile.length) onDrawDeck()
+              }}
               onDoubleClick={() => {
                 if (myDraw && state.drawPile.length) onDrawDeck()
               }}
-              title={myDraw ? 'Double-click to draw from the deck' : undefined}
+              title={myDraw ? 'Tap to draw from the deck' : undefined}
             >
               <Card faceDown size="md" />
               <span className="pile-count">{state.drawPile.length}</span>
@@ -111,10 +117,13 @@ export function GameBoard({
             </div>
             <div
               className={`pile ${myDraw && discardTop !== undefined ? 'is-hot' : ''}`}
+              onClick={() => {
+                if (myDraw && discardTop !== undefined) onDrawDiscard()
+              }}
               onDoubleClick={() => {
                 if (myDraw && discardTop !== undefined) onDrawDiscard()
               }}
-              title={myDraw && discardTop !== undefined ? 'Double-click to take discard' : undefined}
+              title={myDraw && discardTop !== undefined ? 'Tap to take the discard' : undefined}
             >
               {discardTop !== undefined ? (
                 <Card id={discardTop} size="md" />
@@ -129,6 +138,50 @@ export function GameBoard({
         </div>
 
         <Tableau state={state} playerIndex={localIndex} localIndex={localIndex} />
+      </div>
+
+      <div className="play-dock">
+        <p className="play-coach">{coach}</p>
+        <div className="play-actions">
+          {myDraw && (
+            <>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!state.drawPile.length}
+                onClick={onDrawDeck}
+              >
+                Draw deck
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={discardTop === undefined}
+                onClick={onDrawDiscard}
+              >
+                Take discard
+              </button>
+            </>
+          )}
+          {myTurn && selected >= 0 && (
+            <>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!selectedLegal}
+                onClick={() => onPlayIndex(selected)}
+              >
+                Play card
+              </button>
+              <button type="button" className="btn ghost" onClick={() => onDiscardIndex(selected)}>
+                Discard
+              </button>
+            </>
+          )}
+          {myTurn && selected < 0 && (
+            <span className="play-nudge">Tap a glowing card, then Play — or slide it</span>
+          )}
+        </div>
       </div>
 
       <HandFan

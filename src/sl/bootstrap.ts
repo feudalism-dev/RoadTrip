@@ -7,6 +7,14 @@ export type SlBootstrap = {
   slCap: string
   name: string
   rev: string
+  /** HUD media parked while the wearer plays in an external browser. */
+  parked: boolean
+  /** `hud` | `browser` — browser is a HUD replacement, not a second client. */
+  client: 'hud' | 'browser' | ''
+  /** PeerJS room to resume if they hand off mid-lobby. */
+  room: string
+  /** HUD LSL watches `action=browser` / `action=hud` on the media URL. */
+  action: string
 }
 
 function paramsFrom(raw: string): URLSearchParams {
@@ -33,6 +41,10 @@ export function readSlBootstrap(href = window.location.href): SlBootstrap | null
 
   const seatRaw = merged.get('seat')
   const seat = seatRaw != null && seatRaw !== '' ? Number(seatRaw) : -1
+  const clientRaw = (merged.get('client') || '').trim().toLowerCase()
+  const client = clientRaw === 'browser' || clientRaw === 'hud' ? clientRaw : ''
+  const parked =
+    merged.get('parked') === '1' || merged.get('parked') === 'true' || clientRaw === 'parked'
   return {
     tableId,
     uid,
@@ -40,6 +52,10 @@ export function readSlBootstrap(href = window.location.href): SlBootstrap | null
     slCap: (merged.get('sl_cap') || merged.get('slCap') || '').trim(),
     name: (merged.get('name') || '').trim(),
     rev: (merged.get('rev') || '').trim(),
+    parked,
+    client,
+    room: (merged.get('room') || '').trim().toUpperCase(),
+    action: (merged.get('action') || '').trim().toLowerCase(),
   }
 }
 

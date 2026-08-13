@@ -45,6 +45,6 @@ Permanent immunity. Playing a safety grants an **extra turn**. Matching safety c
 | Traffic Jam | Traffic Clear | Fast Lane |
 | GPS Error | Navigation Fix | GPS Lock |
 
-## Coup Fourré
+## Counter Attack
 
-When hit by a hazard, if you hold the matching safety, play it immediately, discard the hazard, skip intervening players, then take your normal turn.
+When hit by a hazard, if you hold the matching safety, play it immediately as a Counter Attack. The hazard is discarded, other players are skipped, then you take your normal turn.

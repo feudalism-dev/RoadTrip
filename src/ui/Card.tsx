@@ -127,7 +127,7 @@ export function Card({
     >
       <motion.div
         style={{ display: 'inline-flex', touchAction: draggablePlay ? 'none' : undefined }}
-        whileHover={dimmed || faceDown ? undefined : { y: -18, scale: 1.06 }}
+        whileHover={dimmed || faceDown ? undefined : { y: -10, scale: 1.04 }}
         whileTap={{ scale: 0.98 }}
         animate={{ scale: selected ? 1.05 : 1 }}
         transition={{ type: 'spring', stiffness: 420, damping: 28 }}
