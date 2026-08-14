@@ -30,6 +30,8 @@ integer gPendingAttach = FALSE;
 integer gPendingDetach = FALSE;
 integer gMoapPending = FALSE;
 integer gParked = FALSE;
+integer gFromTableRez = FALSE;
+integer gDetachTries = 0;
 integer gResyncLeft = 0;
 string gLastHomeUrl = "";
 integer gHelloTicks = 0;
@@ -286,9 +288,19 @@ integer initiateDetach()
     if (gPendingDetach) return TRUE;
     gPendingDetach = TRUE;
     gPendingAttach = FALSE;
-    llSetTimerEvent(0.0);
+    gDetachTries = 0;
     llClearPrimMedia(HUD_FACE);
+    if (!llGetAttached())
+    {
+        llDie();
+        return TRUE;
+    }
+    // Do not wait for a second Experience grant — that event often does not fire
+    // when permission is already held from temp-attach.
+    llDetachFromAvatar();
+    llRequestPermissions(llGetOwner(), PERMISSION_ATTACH);
     llRequestExperiencePermissions(llGetOwner(), "");
+    llSetTimerEvent(0.5);
     return TRUE;
 }
 
@@ -323,6 +335,8 @@ default
         gHsChan = startParam;
         gPendingAttach = FALSE;
         gPendingDetach = FALSE;
+        gFromTableRez = TRUE;
+        gDetachTries = 0;
         gTableId = "";
         gSeat = -1;
         gSlCap = "";
@@ -344,7 +358,16 @@ default
         {
             list p = llParseStringKeepNulls(msg, ["|"], []);
             string tid = llList2String(p, 1);
+            string who = llList2String(p, 2);
             if (tid != "" && gTableId != "" && tid != gTableId) return;
+            if (who != "")
+            {
+                key target = (key)who;
+                if (target != NULL_KEY)
+                {
+                    if (target != gWearer && target != gTargetAvatar && target != llGetOwner()) return;
+                }
+            }
             llOwnerSay("Left the Road Trip table.");
             initiateDetach();
             return;
@@ -452,6 +475,26 @@ default
 
     timer()
     {
+        if (gPendingDetach)
+        {
+            gDetachTries++;
+            if (!llGetAttached())
+            {
+                llDie();
+                return;
+            }
+            llDetachFromAvatar();
+            if (gFromTableRez && gDetachTries >= 3)
+            {
+                llDie();
+            }
+            if (gDetachTries >= 8)
+            {
+                llSetTimerEvent(0.0);
+            }
+            return;
+        }
+
         if (gPendingAttach && llGetAttached() == 0)
         {
             llRegionSayTo(gTargetAvatar, 0, "Road Trip HUD attach timed out. Stand and sit again.");

@@ -140,7 +140,7 @@ Base URL is **hardcoded in HUD LSL**. `HOME_URL` must match session URL (minus b
 | Event | Policy |
 |-------|--------|
 | Quit / Leave in UI | Forfeit; release seat’s match slot; end if &lt;2 in MP or if solo |
-| Stand (`90065`) | 15s grace then clear seat + Active; forfeit if in match; `RT_DETACH` removes HUD |
+| Stand (`90065`) | **Immediate** `RT_DETACH` (avatar command channel + HUD object + table channel); seat/forfeit still wait 15s grace |
 | Turn timeout | Web-side later (120s / 2 strikes); not in LSL |
 | Host leaves MP | Match abandoned; table → idle; Actives return to lobby |
 | Create after game | First click wins |

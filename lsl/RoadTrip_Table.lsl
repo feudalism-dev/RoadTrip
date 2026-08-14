@@ -23,6 +23,7 @@ integer RESET_TIMEOUT_SEC = 6;
 
 // Parallel seat lists (index = seat 0..3). Empty seat: NULL_KEY / ""
 list gSeatAv = [];
+list gHudObj = []; // per-seat HUD object keys (for targeted RT_DETACH)
 list gSeatName = [];
 list gActive = []; // TRUE/FALSE per seat
 
@@ -84,6 +85,7 @@ integer initSeats()
     gSeatAv = [NULL_KEY, NULL_KEY, NULL_KEY, NULL_KEY];
     gSeatName = ["", "", "", ""];
     gActive = [FALSE, FALSE, FALSE, FALSE];
+    gHudObj = [NULL_KEY, NULL_KEY, NULL_KEY, NULL_KEY];
     return TRUE;
 }
 
@@ -195,6 +197,29 @@ string mintRoomCode()
         s += llGetSubString(alphabet, r, r);
     }
     return s;
+}
+
+integer sendHudDetach(key av, integer seat)
+{
+    string msg = "RT_DETACH|" + (string)llGetKey() + "|" + (string)av;
+    if (av != NULL_KEY)
+    {
+        llRegionSayTo(av, commandChannel(av), msg);
+        llRegionSay(tableChannel(), msg);
+    }
+    if (seat >= 0 && seat < MAX_SEATS)
+    {
+        key hud = llList2Key(gHudObj, seat);
+        if (hud != NULL_KEY)
+        {
+            integer ch = 0;
+            if (av != NULL_KEY) ch = commandChannel(av);
+            llRegionSayTo(hud, ch, msg);
+            gHudObj = llListReplaceList(gHudObj, [NULL_KEY], seat, seat);
+        }
+    }
+    debug("RT_DETACH av=" + (string)av + " seat=" + (string)seat);
+    return TRUE;
 }
 
 string readyMessage(key av, integer seat)
@@ -321,7 +346,7 @@ integer clearSeat(integer seat)
     key av = llList2Key(gSeatAv, seat);
     if (av != NULL_KEY)
     {
-        llRegionSayTo(av, commandChannel(av), "RT_DETACH|" + (string)llGetKey());
+        sendHudDetach(av, seat);
         forfeitAvatar(av);
     }
     gSeatAv = llListReplaceList(gSeatAv, [NULL_KEY], seat, seat);
@@ -345,6 +370,12 @@ integer onSit(key av, integer seat)
     if (prev == seat && old == av)
     {
         sendReady(av, seat);
+        key hud = NULL_KEY;
+        if (seat >= 0 && seat < MAX_SEATS) hud = llList2Key(gHudObj, seat);
+        if (hud == NULL_KEY)
+        {
+            rezHudFor(av, seat);
+        }
         return TRUE;
     }
 
@@ -863,14 +894,29 @@ default
         }
         if (num == AVSITTER_STAND)
         {
-            integer seat = seatOf(id);
-            if (seat < 0) seat = (integer)str;
-            // Poker-style: detach HUD immediately on stand; seat/forfeit still wait for grace.
-            if (id != NULL_KEY)
+            key av = id;
+            integer seat = -1;
+            if (av != NULL_KEY) seat = seatOf(av);
+            if (seat < 0)
             {
-                llRegionSayTo(id, commandChannel(id), "RT_DETACH|" + (string)llGetKey());
+                key fromStr = (key)str;
+                if (fromStr != NULL_KEY)
+                {
+                    av = fromStr;
+                    seat = seatOf(av);
+                }
             }
-            beginStandGrace(id, seat);
+            if (seat < 0)
+            {
+                integer s = (integer)str;
+                if (s >= 0 && s < MAX_SEATS)
+                {
+                    seat = s;
+                    if (av == NULL_KEY) av = llList2Key(gSeatAv, seat);
+                }
+            }
+            sendHudDetach(av, seat);
+            beginStandGrace(av, seat);
             return;
         }
     }
@@ -885,6 +931,10 @@ default
         string msg = readyMessage(av, seat);
         if (msg == "") return;
         queueHudReady(objId, ch, msg);
+        if (seat >= 0 && seat < MAX_SEATS)
+        {
+            gHudObj = llListReplaceList(gHudObj, [objId], seat, seat);
+        }
     }
 
     listen(integer channel, string name, key id, string msg)
