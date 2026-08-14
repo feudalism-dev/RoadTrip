@@ -64,3 +64,18 @@ Permanent immunity. Playing a safety grants an **extra turn**. Matching safety c
 ## Counter Attack
 
 When hit by a hazard, if you hold the matching safety, play it immediately as a Counter Attack. The hazard is discarded, other players are skipped, then you take your normal turn.
+
+## Auto Club
+
+A **battle** hazard (not Speed Limit) that sits on you is a stall. Each of **your** turns under that same hazard counts. A **new** battle hazard starts the count at 0.
+
+If you still have no matching remedy or safety:
+
+| Your stuck turns | Offer |
+|---|---|
+| 5 | Tow for **100** miles, only if you have at least 100 |
+| 10 | Tow for **50**, if you have at least 50 |
+| 15 | Tow for **25**, if you have at least 25 |
+| 20 | No choice. Highway Patrol orders a **free** tow |
+
+Tiers you cannot afford are skipped (no extra wait). Saying **No** waits 5 more of your turns for the next cheaper offer. **Yes** (or the forced tow) discards the hazard, subtracts the cost (floor 0), and you are moving again on your next turn.

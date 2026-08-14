@@ -10,6 +10,10 @@ export type PlayerTableau = {
   speedPile: CardId[]
   safeties: CardId[]
   coupFourreSafeties: CardId[]
+  /** Battle hazard currently stalling this driver, or 0. */
+  stuckHazard: CardId | 0
+  /** This driver's turns spent under that hazard. Resets on a new hazard. */
+  stuckTurns: number
 }
 
 export type GameMove = {
@@ -25,6 +29,11 @@ export type PendingHazard = {
   targetIndex: number
   hazard: CardId
   coupDeadlinePlayer: number
+}
+
+export type PendingAutoClub = {
+  playerIndex: number
+  cost: number
 }
 
 export type MatchConfig = {
@@ -44,6 +53,7 @@ export type MatchState = {
   currentPlayer: number
   winnerIndex: number
   pending: PendingHazard | null
+  pendingAutoClub: PendingAutoClub | null
   coupFourreCount: number
   lastMessage: string
   turnNumber: number
@@ -68,6 +78,8 @@ export function emptyTableau(name: string, isHuman: boolean): PlayerTableau {
     speedPile: [],
     safeties: [],
     coupFourreSafeties: [],
+    stuckHazard: 0,
+    stuckTurns: 0,
   }
 }
 
@@ -135,6 +147,14 @@ export function drawDeckMove(player: number): GameMove {
 
 export function drawDiscardMove(player: number): GameMove {
   return { kind: MoveKind.DrawDiscard, playerIndex: player, handIndex: -1, card: 0 as CardId, targetPlayerIndex: -1 }
+}
+
+export function autoClubAcceptMove(player: number): GameMove {
+  return { kind: MoveKind.AutoClubAccept, playerIndex: player, handIndex: -1, card: 0 as CardId, targetPlayerIndex: -1 }
+}
+
+export function autoClubDeclineMove(player: number): GameMove {
+  return { kind: MoveKind.AutoClubDecline, playerIndex: player, handIndex: -1, card: 0 as CardId, targetPlayerIndex: -1 }
 }
 
 export function cloneState(state: MatchState): MatchState {

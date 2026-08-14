@@ -7,6 +7,8 @@ import {
   discardMove,
   drawDeckMove,
   drawDiscardMove,
+  autoClubAcceptMove,
+  autoClubDeclineMove,
   getLegalMoves,
   getCard,
   MatchPhase,
@@ -537,6 +539,8 @@ function AppInner() {
   const myTurn = state.currentPlayer === localIndex && state.phase === MatchPhase.Playing && !aiThinking
   const myDraw = state.currentPlayer === localIndex && state.phase === MatchPhase.AwaitingDraw && !aiThinking
   const myCoup = state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === localIndex
+  const myAutoClub =
+    state.phase === MatchPhase.AwaitingAutoClub && state.pendingAutoClub?.playerIndex === localIndex
 
   let coupBanner: ReactNode = null
   if (myCoup) {
@@ -568,6 +572,38 @@ function AppInner() {
             }}
           >
             Take the hit
+          </button>
+        </div>
+      </div>
+    )
+  } else if (myAutoClub && state.pendingAutoClub) {
+    const cost = state.pendingAutoClub.cost
+    coupBanner = (
+      <div className="banner-overlay">
+        <div className="banner-card">
+          <h2>Call the Auto Club?</h2>
+          <p>Lose {cost} miles to get towed and back on the road?</p>
+          <button
+            className="btn primary"
+            onClick={() => {
+              const move = autoClubAcceptMove(localIndex)
+              local?.submit(move)
+              peer?.submit(move)
+              bump()
+            }}
+          >
+            Yes — tow me (−{cost})
+          </button>
+          <button
+            className="btn ghost"
+            onClick={() => {
+              const move = autoClubDeclineMove(localIndex)
+              local?.submit(move)
+              peer?.submit(move)
+              bump()
+            }}
+          >
+            No, I'll wait
           </button>
         </div>
       </div>

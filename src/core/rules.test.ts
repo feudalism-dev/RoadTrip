@@ -1,5 +1,5 @@
 import { CardId, MatchPhase } from './cards'
-import { defaultConfig } from './state'
+import { defaultConfig, canDrive } from './state'
 import {
   createMatch,
   canPlayDistance,
@@ -9,6 +9,9 @@ import {
   coupMove,
   drawDeckMove,
   drawDiscardMove,
+  discardMove,
+  autoClubAcceptMove,
+  autoClubDeclineMove,
 } from './rules'
 import { describe, expect, it } from 'vitest'
 
@@ -150,4 +153,94 @@ describe('RulesEngine', () => {
     expect(state.players[0]!.hand).toContain(CardId.Drive)
     expect(state.discardPile.length).toBe(0)
   })
+
+  it('skips Auto Club at 5 stuck turns if the driver has under 100 miles', () => {
+    const state = stallUnderHazard(50, 4)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(state.players[0]!.stuckTurns).toBe(5)
+    expect(state.phase).not.toBe(MatchPhase.AwaitingAutoClub)
+    expect(state.currentPlayer).toBe(1)
+  })
+
+  it('offers a 100-mile Auto Club tow after 5 stuck turns', () => {
+    const state = stallUnderHazard(200, 4)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(state.phase).toBe(MatchPhase.AwaitingAutoClub)
+    expect(state.pendingAutoClub).toEqual({ playerIndex: 0, cost: 100 })
+    expect(state.currentPlayer).toBe(0)
+  })
+
+  it('Auto Club yes subtracts miles and clears the hazard', () => {
+    const state = stallUnderHazard(200, 4)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(tryApply(state, autoClubAcceptMove(0)).ok).toBe(true)
+    expect(state.players[0]!.miles).toBe(100)
+    expect(canDrive(state.players[0]!)).toBe(true)
+    expect(state.players[0]!.stuckTurns).toBe(0)
+    expect(state.phase).not.toBe(MatchPhase.AwaitingAutoClub)
+    expect(state.currentPlayer).toBe(1)
+  })
+
+  it('Auto Club no leaves the hazard and waits for the next tier', () => {
+    const state = stallUnderHazard(200, 4)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(tryApply(state, autoClubDeclineMove(0)).ok).toBe(true)
+    expect(state.players[0]!.miles).toBe(200)
+    expect(state.players[0]!.stuckTurns).toBe(5)
+    expect(canDrive(state.players[0]!)).toBe(false)
+    expect(state.currentPlayer).toBe(1)
+  })
+
+  it('offers a 50-mile tow at 10 stuck turns when 100 was unaffordable', () => {
+    const state = stallUnderHazard(50, 9)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(state.phase).toBe(MatchPhase.AwaitingAutoClub)
+    expect(state.pendingAutoClub?.cost).toBe(50)
+  })
+
+  it('Highway Patrol tows for free at 20 stuck turns', () => {
+    const state = stallUnderHazard(80, 19)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(state.players[0]!.miles).toBe(80)
+    expect(canDrive(state.players[0]!)).toBe(true)
+    expect(state.phase).not.toBe(MatchPhase.AwaitingAutoClub)
+    expect(state.lastMessage).toMatch(/Highway Patrol/)
+    expect(state.currentPlayer).toBe(1)
+  })
+
+  it('a new battle hazard resets the stuck count', () => {
+    const state = stallUnderHazard(200, 4)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(tryApply(state, autoClubAcceptMove(0)).ok).toBe(true)
+    const bob = state.players[1]!
+    bob.hand = [CardId.Accident]
+    state.phase = MatchPhase.Playing
+    state.currentPlayer = 1
+    expect(tryApply(state, playMove(1, 0, CardId.Accident, 0)).ok).toBe(true)
+    expect(state.players[0]!.stuckHazard).toBe(CardId.Accident)
+    expect(state.players[0]!.stuckTurns).toBe(0)
+  })
+
+  it('does not offer Auto Club when the driver still holds the matching remedy', () => {
+    const state = stallUnderHazard(200, 4)
+    state.players[0]!.hand = [CardId.SpareTire, CardId.Miles25]
+    expect(tryApply(state, discardMove(0, 1, CardId.Miles25)).ok).toBe(true)
+    expect(state.phase).not.toBe(MatchPhase.AwaitingAutoClub)
+    expect(state.players[0]!.stuckTurns).toBe(5)
+  })
 })
+
+function stallUnderHazard(miles: number, stuckTurns: number) {
+  const state = createMatch(['Alice', 'Bob'], [true, true], defaultConfig(31))
+  const alice = state.players[0]!
+  alice.battlePile = [CardId.Drive, CardId.FlatTire]
+  alice.stuckHazard = CardId.FlatTire
+  alice.stuckTurns = stuckTurns
+  alice.miles = miles
+  alice.hand = [CardId.Miles25]
+  state.phase = MatchPhase.Playing
+  state.currentPlayer = 0
+  state.pendingAutoClub = null
+  state.discardPile = []
+  return state
+}

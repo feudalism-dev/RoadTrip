@@ -8,6 +8,8 @@ import {
   discardMove,
   drawDeckMove,
   drawDiscardMove,
+  autoClubAcceptMove,
+  autoClubDeclineMove,
   type MatchState,
   type GameMove,
 } from '../core/rules'
@@ -62,6 +64,15 @@ export function startSolo(name: string, aiCount: number, difficulty: AiDifficult
       return true
     }
 
+    if (state.phase === MatchPhase.AwaitingAutoClub && state.pendingAutoClub) {
+      const t = state.pendingAutoClub.playerIndex
+      if (state.players[t]!.isHuman) return false
+      const move = chooseAiMove(state, t, difficulty)
+      if (move) tryApply(state, move)
+      pushLog(state.lastMessage)
+      return true
+    }
+
     const cur = state.currentPlayer
     if (state.players[cur]!.isHuman) return false
     const move = chooseAiMove(state, cur, difficulty)
@@ -84,6 +95,9 @@ export function startSolo(name: string, aiCount: number, difficulty: AiDifficult
           (state.phase === MatchPhase.AwaitingCoupFourre &&
             state.pending &&
             !state.players[state.pending.targetIndex]!.isHuman) ||
+          (state.phase === MatchPhase.AwaitingAutoClub &&
+            state.pendingAutoClub &&
+            !state.players[state.pendingAutoClub.playerIndex]!.isHuman) ||
           ((state.phase === MatchPhase.Playing || state.phase === MatchPhase.AwaitingDraw) &&
             !state.players[state.currentPlayer]!.isHuman)
 
@@ -127,9 +141,12 @@ export function startSolo(name: string, aiCount: number, difficulty: AiDifficult
       const myPhase =
         state.phase === MatchPhase.Playing ||
         state.phase === MatchPhase.AwaitingDraw ||
-        (state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === 0)
-      if (cur !== 0 && state.phase !== MatchPhase.AwaitingCoupFourre) return
-      if (!myPhase && state.phase !== MatchPhase.AwaitingCoupFourre) return
+        (state.phase === MatchPhase.AwaitingCoupFourre && state.pending?.targetIndex === 0) ||
+        (state.phase === MatchPhase.AwaitingAutoClub && state.pendingAutoClub?.playerIndex === 0)
+      if (cur !== 0 && state.phase !== MatchPhase.AwaitingCoupFourre && state.phase !== MatchPhase.AwaitingAutoClub) {
+        return
+      }
+      if (!myPhase) return
       const res = tryApply(state, move)
       if (!res.ok) {
         state = { ...state, lastMessage: res.error }
@@ -224,6 +241,11 @@ export function whatShouldIDo(state: MatchState, localIndex: number): string {
     return 'You were attacked. Press Counter Attack if you have the matching Safety, or Take the hit.'
   }
 
+  if (state.phase === MatchPhase.AwaitingAutoClub && state.pendingAutoClub?.playerIndex === localIndex) {
+    const cost = state.pendingAutoClub.cost
+    return `Call the Auto Club? Lose ${cost} miles to get towed and back on the road, or wait for a fix.`
+  }
+
   if (state.currentPlayer !== localIndex) {
     return `Wait — ${state.players[state.currentPlayer]!.displayName} is playing right now.`
   }
@@ -239,7 +261,9 @@ export function whatShouldIDo(state: MatchState, localIndex: number): string {
     if (hasRemedy) {
       return `You are stuck under ${getCard(top).name}. Play ${remedyName} now (it should glow) — that restores GO so you can play miles again.`
     }
-    return `You are stuck under ${getCard(top).name}. You need ${remedyName} (or the matching Safety). If you don't have it, discard something and hope to draw it.`
+    const nextClub =
+      me.stuckTurns >= 15 ? 'a free Highway Patrol tow at 20' : me.stuckTurns >= 10 ? 'a 25-mile tow at 15' : me.stuckTurns >= 5 ? 'a 50-mile tow at 10' : 'Auto Club after 5 of your stuck turns'
+    return `You are stuck under ${getCard(top).name}. You need ${remedyName} (or the matching Safety). If you don't have it, discard something and hope to draw it (${me.stuckTurns} stuck turn${me.stuckTurns === 1 ? '' : 's'}; ${nextClub}).`
   }
 
   // Empty or non-drive remedy showing — need Drive
@@ -287,10 +311,26 @@ export function turnBanner(state: MatchState, localIndex: number, aiThinking: bo
     if (state.pending.targetIndex === localIndex) return 'You were attacked — Counter Attack?'
     return `${victim.displayName} was attacked…`
   }
+  if (state.phase === MatchPhase.AwaitingAutoClub && state.pendingAutoClub) {
+    const who = state.players[state.pendingAutoClub.playerIndex]!
+    if (state.pendingAutoClub.playerIndex === localIndex) return 'Auto Club — call a tow?'
+    return `${who.displayName} is deciding on a tow…`
+  }
   if (aiThinking || state.currentPlayer !== localIndex) {
     return `${state.players[state.currentPlayer]!.displayName} is taking a turn`
   }
   return 'YOUR TURN'
 }
 
-export { playMove, discardMove, drawDeckMove, drawDiscardMove, getLegalMoves, getCard, MatchPhase, MoveKind }
+export {
+  playMove,
+  discardMove,
+  drawDeckMove,
+  drawDiscardMove,
+  autoClubAcceptMove,
+  autoClubDeclineMove,
+  getLegalMoves,
+  getCard,
+  MatchPhase,
+  MoveKind,
+}

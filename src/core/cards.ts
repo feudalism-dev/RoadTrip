@@ -42,6 +42,8 @@ export enum MoveKind {
   CoupFourre = 3,
   DrawDeck = 4,
   DrawDiscard = 5,
+  AutoClubAccept = 6,
+  AutoClubDecline = 7,
 }
 
 export enum MatchPhase {
@@ -50,6 +52,7 @@ export enum MatchPhase {
   AwaitingCoupFourre = 2,
   Finished = 3,
   AwaitingDraw = 4,
+  AwaitingAutoClub = 5,
 }
 
 /** Solo and multiplayer seats (1 human + up to 3 others, or 2–4 humans). */

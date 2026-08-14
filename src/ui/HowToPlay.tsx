@@ -112,7 +112,10 @@ const PAGES: Page[] = [
             </tr>
           </tbody>
         </table>
-        <p className="muted">Speed Limit does not stop you — it only allows 25 and 50 mile cards.</p>
+        <p className="muted">
+          Speed Limit does not stop you — it only allows 25 and 50 mile cards. If a stop hazard lasts 5 of
+          your turns, you may call the Auto Club (pay miles for a tow). A new hazard starts that count over.
+        </p>
       </>
     ),
   },

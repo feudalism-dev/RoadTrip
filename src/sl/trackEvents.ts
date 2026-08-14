@@ -223,9 +223,11 @@ export function payloadsFromState(
     const a = prev.players[i]!
     const b = next.players[i]!
 
-    if (b.miles > a.miles) {
+    if (b.miles !== a.miles) {
       const delta = b.miles - a.miles
-      out.push(pipePayload(map, 'MILEAGE', i, i, 'DISTANCE', delta, b.miles))
+      out.push(
+        pipePayload(map, 'MILEAGE', i, i, delta < 0 ? 'GO' : 'DISTANCE', delta < 0 ? 0 : delta, b.miles),
+      )
     }
 
     if (b.safeties.length > a.safeties.length) {
@@ -241,6 +243,8 @@ export function payloadsFromState(
       } else if (def.category === CardCategory.Remedy) {
         out.push(pipePayload(map, 'MILEAGE', i, i, cardTypeFor(card), 0, b.miles))
       }
+    } else if (b.battlePile.length < a.battlePile.length && b.safeties.length <= a.safeties.length) {
+      out.push(pipePayload(map, 'REMEDY', i, i, 'GO', 0, b.miles))
     }
 
     if (b.speedPile.length > a.speedPile.length) {

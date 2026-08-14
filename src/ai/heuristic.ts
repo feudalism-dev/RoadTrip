@@ -11,6 +11,11 @@ export function chooseAiMove(state: MatchState, playerIndex: number, difficulty:
     return coups[0] ?? null
   }
 
+  if (state.phase === MatchPhase.AwaitingAutoClub) {
+    const accept = getLegalMoves(state).find((m) => m.kind === MoveKind.AutoClubAccept)
+    return accept ?? getLegalMoves(state)[0] ?? null
+  }
+
   if (state.phase === MatchPhase.AwaitingDraw) {
     return chooseAiDraw(state, playerIndex, difficulty)
   }

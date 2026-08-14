@@ -15,11 +15,30 @@ import {
   coupMove,
   drawDeckMove,
   drawDiscardMove,
+  autoClubAcceptMove,
+  autoClubDeclineMove,
 } from './state'
 import type { MatchConfig, MatchState, GameMove, PlayerTableau } from './state'
 
-export { defaultConfig, playMove, discardMove, coupMove, drawDeckMove, drawDiscardMove }
+export {
+  defaultConfig,
+  playMove,
+  discardMove,
+  coupMove,
+  drawDeckMove,
+  drawDiscardMove,
+  autoClubAcceptMove,
+  autoClubDeclineMove,
+}
 export type { MatchState, GameMove, MatchConfig, PlayerTableau }
+
+/** Paid Auto Club offers fire on these stuck-turn counts if the driver can pay. */
+export const AUTO_CLUB_PAID = [
+  { turns: 5, cost: 100 },
+  { turns: 10, cost: 50 },
+  { turns: 15, cost: 25 },
+] as const
+export const AUTO_CLUB_FORCE_TURNS = 20
 
 function mulberry32(seed: number) {
   let t = seed >>> 0
@@ -136,6 +155,7 @@ export function createMatch(
     currentPlayer: 0,
     winnerIndex: -1,
     pending: null,
+    pendingAutoClub: null,
     coupFourreCount: 0,
     lastMessage: `${names[0]} starts the road trip.`,
     turnNumber: 1,
@@ -211,6 +231,13 @@ export function getLegalMoves(state: MatchState): GameMove[] {
     return moves
   }
 
+  if (state.phase === MatchPhase.AwaitingAutoClub && state.pendingAutoClub) {
+    const p = state.pendingAutoClub.playerIndex
+    moves.push(autoClubAcceptMove(p))
+    moves.push(autoClubDeclineMove(p))
+    return moves
+  }
+
   if (state.phase !== MatchPhase.Playing) return moves
 
   const p = state.currentPlayer
@@ -235,16 +262,89 @@ export function getLegalMoves(state: MatchState): GameMove[] {
 }
 
 function applyHazard(victim: PlayerTableau, hazard: CardId): void {
-  if (hazard === CardId.SpeedLimit) victim.speedPile.push(hazard)
-  else victim.battlePile.push(hazard)
+  if (hazard === CardId.SpeedLimit) {
+    victim.speedPile.push(hazard)
+    return
+  }
+  victim.battlePile.push(hazard)
+  victim.stuckHazard = hazard
+  victim.stuckTurns = 0
 }
 
 function undoHazard(victim: PlayerTableau, hazard: CardId): void {
   if (hazard === CardId.SpeedLimit) {
     if (speedTop(victim) === hazard) victim.speedPile.pop()
-  } else if (battleTop(victim) === hazard) {
-    victim.battlePile.pop()
+    return
   }
+  if (battleTop(victim) === hazard) victim.battlePile.pop()
+  resetStuck(victim)
+}
+
+function resetStuck(p: PlayerTableau): void {
+  p.stuckHazard = 0
+  p.stuckTurns = 0
+}
+
+function battleHazardTop(p: PlayerTableau): CardId | 0 {
+  const top = battleTop(p)
+  if (!top) return 0
+  const def = getCard(top)
+  if (def.category === CardCategory.Hazard && def.isBattleHazard) return top
+  return 0
+}
+
+function canSelfFix(p: PlayerTableau, hazard: CardId): boolean {
+  return p.hand.some((c) => {
+    if (safetyBlocksHazard(c, hazard)) return true
+    return getCard(c).countersHazard === hazard
+  })
+}
+
+function applyTow(state: MatchState, playerIndex: number, cost: number, forced: boolean): void {
+  const p = state.players[playerIndex]!
+  if (cost > 0) p.miles = Math.max(0, p.miles - cost)
+  const top = battleHazardTop(p)
+  if (top) {
+    p.battlePile.pop()
+    state.discardPile.push(top)
+  }
+  resetStuck(p)
+  if (forced) {
+    state.lastMessage = `The Highway Patrol got tired of ${p.displayName} blocking traffic and ordered a tow truck.`
+  } else {
+    state.lastMessage = `${p.displayName} called the Auto Club (−${cost} miles) and is back on the road.`
+  }
+}
+
+/** Count this driver's finished turn under a battle hazard. May open Auto Club or force a tow. */
+function tickStuckHazard(state: MatchState, playerIndex: number): 'none' | 'offer' | 'forced' {
+  const p = state.players[playerIndex]!
+  const hz = battleHazardTop(p)
+  if (!hz) {
+    resetStuck(p)
+    return 'none'
+  }
+  if (p.stuckHazard !== hz) {
+    p.stuckHazard = hz
+    p.stuckTurns = 0
+  }
+  p.stuckTurns++
+
+  if (canSelfFix(p, hz)) return 'none'
+
+  if (p.stuckTurns >= AUTO_CLUB_FORCE_TURNS) {
+    applyTow(state, playerIndex, 0, true)
+    return 'forced'
+  }
+
+  const tier = AUTO_CLUB_PAID.find((t) => t.turns === p.stuckTurns)
+  if (tier && p.miles >= tier.cost) {
+    state.phase = MatchPhase.AwaitingAutoClub
+    state.pendingAutoClub = { playerIndex, cost: tier.cost }
+    state.lastMessage = `${p.displayName} may call the Auto Club (−${tier.cost} miles).`
+    return 'offer'
+  }
+  return 'none'
 }
 
 function playSafety(state: MatchState, playerIndex: number, safety: CardId, coup: boolean): void {
@@ -253,13 +353,17 @@ function playSafety(state: MatchState, playerIndex: number, safety: CardId, coup
   if (coup) me.coupFourreSafeties.push(safety)
 
   if (safety === CardId.EmergencyVehicle) {
-    if (battleTop(me) === CardId.RedLight) state.discardPile.push(me.battlePile.pop()!)
+    if (battleTop(me) === CardId.RedLight) {
+      state.discardPile.push(me.battlePile.pop()!)
+      resetStuck(me)
+    }
     if (speedTop(me) === CardId.SpeedLimit) state.discardPile.push(me.speedPile.pop()!)
   } else {
     for (const d of CARD_DEFS) {
       if (d.category !== CardCategory.Hazard) continue
       if (safetyForHazard(d.id) === safety && battleTop(me) === d.id) {
         state.discardPile.push(me.battlePile.pop()!)
+        resetStuck(me)
         break
       }
     }
@@ -284,12 +388,17 @@ function cardsRemainToDraw(state: MatchState): boolean {
   return state.drawPile.length > 0 || state.discardPile.length > 0
 }
 
-function endTurn(state: MatchState): void {
+function endTurn(state: MatchState, skipStuckTick = false): void {
   if (state.phase === MatchPhase.Finished) return
   const handsEmpty = state.players.every((p) => p.hand.length === 0)
   if (!cardsRemainToDraw(state) && handsEmpty) {
     finishByExhaustion(state)
     return
+  }
+
+  if (!skipStuckTick) {
+    const stuck = tickStuckHazard(state, state.currentPlayer)
+    if (stuck === 'offer') return
   }
 
   let guard = 0
@@ -319,6 +428,26 @@ export function declineCoupFourre(state: MatchState): { ok: true } | { ok: false
 
 export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok: false; error: string } {
   if (state.phase === MatchPhase.Finished) return { ok: false, error: 'Match is finished.' }
+
+  if (state.phase === MatchPhase.AwaitingAutoClub) {
+    const pending = state.pendingAutoClub
+    if (!pending) return { ok: false, error: 'No Auto Club offer pending.' }
+    if (move.playerIndex !== pending.playerIndex) return { ok: false, error: 'Not your Auto Club offer.' }
+    if (move.kind === MoveKind.AutoClubAccept) {
+      if (state.players[pending.playerIndex]!.miles < pending.cost) {
+        return { ok: false, error: 'Not enough miles to call the Auto Club.' }
+      }
+      applyTow(state, pending.playerIndex, pending.cost, false)
+    } else if (move.kind === MoveKind.AutoClubDecline) {
+      state.lastMessage = `${state.players[pending.playerIndex]!.displayName} waved off the Auto Club.`
+    } else {
+      return { ok: false, error: 'Waiting for an Auto Club decision.' }
+    }
+    state.pendingAutoClub = null
+    state.phase = MatchPhase.Playing
+    endTurn(state, true)
+    return { ok: true }
+  }
 
   if (state.phase === MatchPhase.AwaitingCoupFourre) {
     if (move.kind !== MoveKind.CoupFourre) return { ok: false, error: 'Waiting for a Counter Attack.' }
@@ -410,6 +539,8 @@ export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok
     me.hand.splice(move.handIndex, 1)
     playSafety(state, move.playerIndex, move.card, false)
     state.lastMessage = `${me.displayName} activated ${def.name} and takes another turn!`
+    const stuck = tickStuckHazard(state, move.playerIndex)
+    if (stuck === 'offer') return { ok: true }
     beginDrawPhase(state)
     return { ok: true }
   }
