@@ -25,9 +25,9 @@ npm run preview
 
 ## Multiplayer
 
-Multiplayer is **table-only** in Second Life: sit, Enter Table, then Create or Join. Friends at the same table Ready → Host Start Match. Uses PeerJS over the public broker (no paid backend).
+Multiplayer is **table-only** in Second Life: sit at a Road Trip table, then Create or Join. Friends at the same table Ready → Host Start Match. Uses PeerJS over the public broker (no paid backend).
 
-Solo vs computer works on this site (or Play in Browser from the HUD) whether or not you are seated.
+This site (the public URL, not seated) is **solo vs computer only**. Anyone sitting at a table — solo or multiplayer — always drives the in-world cars and screens.
 
 ## GitHub Pages
 
@@ -53,6 +53,6 @@ Site: `https://<you>.github.io/RoadTrip/`
 3. Upload all **50** PNGs from `assets/table_screens_upload/` into the **Track** prim inventory — keep inventory names = filename without `.png`.
 4. Build HUD object named **`RoadTrip HUD`** (square, media face **4**), put `lsl/RoadTrip_HUD.lsl` in it (same Experience), then put that object in the **table** inventory.
 5. Whitelist `feudalism-dev.github.io` for media; bump `HUD_PAGE_ASSET_REV` after Pages deploys.
-6. Sit → table rezzes/attaches HUD → click **Enter Table** in MOAP.
+6. Sit → table rezzes/attaches HUD → lobby (auto-enter). Solo and MP both drive the table.
 
 Details: [Docs/SECOND_LIFE.md](Docs/SECOND_LIFE.md) · textures: [Docs/TABLE_SCREEN_ASSETS.md](Docs/TABLE_SCREEN_ASSETS.md).

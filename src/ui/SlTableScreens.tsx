@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SlBootstrap } from '../sl/bootstrap'
 import {
   tableClaimSolo,
@@ -57,6 +57,16 @@ export function SlTableScreens({
   const [entered, setEntered] = useState(false)
   const [table, setTable] = useState<TableStatus | null>(null)
   const [err, setErr] = useState('')
+  const enterLock = useRef(false)
+
+  const enterTable = async (name: string) => {
+    if (!boot.slCap) throw new Error('Waiting for table HTTP-IN URL')
+    const st = await tableEnter(boot.slCap, boot.uid, boot.seat, name)
+    setTable(st)
+    if (!st.ok) throw new Error(st.error || 'Enter failed')
+    setEntered(true)
+    setStatus('Seated — this HUD drives the table.')
+  }
 
   const refresh = async () => {
     if (!boot.slCap) {
@@ -93,6 +103,31 @@ export function SlTableScreens({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- poll boot identity only
   }, [boot.slCap, boot.uid, boot.seat, entered, displayName])
 
+  useEffect(() => {
+    if (entered || !boot.slCap || enterLock.current) return
+    enterLock.current = true
+    let cancelled = false
+    void (async () => {
+      setBusy(true)
+      setErr('')
+      try {
+        await enterTable(displayName)
+      } catch (e) {
+        if (!cancelled) {
+          setErr(e instanceof Error ? e.message : 'Enter failed')
+          enterLock.current = false
+        }
+      } finally {
+        if (!cancelled) setBusy(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // Enter once per table session; retry is the button below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boot.slCap, boot.uid, boot.seat])
+
   const mode = table?.mode || 'idle'
   const activeCount = table?.activeCount ?? 0
   const me = table?.roster?.find((r) => r.uid.toLowerCase() === boot.uid.toLowerCase())
@@ -110,36 +145,21 @@ export function SlTableScreens({
         <div className="menu-card">
           <p className="brand-kicker">Table · Seat {boot.seat >= 0 ? boot.seat + 1 : '?'}</p>
           <h1>ROAD TRIP</h1>
-          <p className="sl-meta">
-            Table {boot.tableId.slice(0, 8)}…
-          </p>
+          <p className="sl-meta">Table {boot.tableId.slice(0, 8)}…</p>
           <p>
-            Enter Table for in-world cars and multiplayer. Solo vs computer works in this browser
-            without entering — the track stays idle until you Enter and start Solo from the lobby.
+            You are at a Road Trip table. Solo and multiplayer both drive the cars and screens. Wait
+            for the table link, then the lobby will open.
           </p>
           <label>
             Display name
             <input value={displayName} onChange={(e) => onNameChange(e.target.value)} />
           </label>
-          <label>
-            AI opponents
-            <select
-              value={aiCount}
-              onChange={(e) => onAiCountChange(Number(e.target.value))}
-              disabled={busy}
-            >
-              <option value={1}>1</option>
-              <option value={2}>2</option>
-              <option value={3}>3</option>
-            </select>
-          </label>
           {!boot.slCap && (
             <p className="muted">
-              No table HTTP link (<code>sl_cap</code>) yet — cars/screens will not update until the
-              table finishes HTTP-IN setup. Wait a few seconds, or stand and sit again. You can still
-              race the computer in this browser.
+              Waiting for the table HTTP link. If this stays here, stand and sit again.
             </p>
           )}
+          {boot.slCap && busy && !err && <p className="muted">Connecting to the table…</p>}
           <button
             className="btn primary"
             disabled={busy || !boot.slCap}
@@ -148,32 +168,16 @@ export function SlTableScreens({
               setBusy(true)
               setErr('')
               try {
-                if (boot.slCap) {
-                  const st = await tableEnter(boot.slCap, boot.uid, boot.seat, displayName)
-                  setTable(st)
-                  if (!st.ok) throw new Error(st.error || 'Enter failed')
-                }
-                setEntered(true)
-                setStatus('Entered table — you are Active.')
+                await enterTable(displayName)
               } catch (e) {
                 setErr(e instanceof Error ? e.message : 'Enter failed')
+                enterLock.current = false
               } finally {
                 setBusy(false)
               }
             }}
           >
-            Enter Table
-          </button>
-          <button
-            className="btn secondary"
-            disabled={busy}
-            onClick={() => {
-              setErr('')
-              void onStartSolo()
-              setStatus('Browser-only race vs AI — table not locked.')
-            }}
-          >
-            Play Solo vs AI
+            {err ? 'Retry' : 'Enter Table'}
           </button>
           {onHowToPlay && (
             <button type="button" className="btn ghost" onClick={onHowToPlay}>
@@ -252,6 +256,7 @@ export function SlTableScreens({
             >
               Play Solo vs AI
             </button>
+            <p className="muted">Solo at this table moves the cars and screens. There is no HUD-only race.</p>
             <button
               className="btn secondary"
               disabled={busy || !canCreate}

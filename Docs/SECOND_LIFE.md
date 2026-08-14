@@ -7,7 +7,7 @@
 | **AVsitter** | Sit poses only (`90070` / `90065`). Does **not** attach the HUD. |
 | **Table LSL** | Roster, **rezzes HUD** from inventory, one-game lock, HTTP-IN |
 | **HUD LSL** | Experience **temp-attach** → set MOAP URL (Pages) |
-| **MOAP (React)** | Solo vs AI anytime; Enter Table for in-world cars + MP Create/Join |
+| **MOAP (React)** | Seated HUD always drives the table; public URL is solo-only |
 | **PeerJS** | Browser↔browser match traffic (not via the table) |
 
 ```
@@ -22,9 +22,9 @@ Browsers → PeerJS for multiplayer moves
 
 ## Hard rules
 
-1. **Sit ≠ Active.** HUD attach ≠ playable for table lock / track / MP. Player must click **Enter Table**.
-2. **Solo vs computer** works in the HUD browser or a real browser **with or without** sitting. Browser-only solo does not lock the table or move cars. Enter + Play Solo vs AI claims the table and drives the track.
-3. **Multiplayer is table-only.** Create/Join require Active players at that table. There is no public web lobby.
+1. **Sit ≠ Active.** HUD attach ≠ playable until the web client **enters** (auto on load, Retry if the table link was late).
+2. **Seated play always drives the table.** Solo vs AI from the HUD claims the table and moves cars/screens. There is no HUD-only ghost race.
+3. **Public URL (not seated)** is solo vs computer only. Multiplayer is table-only — Create/Join require Active players at that table. There is no public web lobby.
 4. **One table, one game.** At most one claimed Solo or one MP match (or its lobby) per table.
 5. **MP only among Actives** who Create/Join that match. Non-joiners wait for the next game.
 6. **Post-game:** first Active to **Create** wins host (no sticky host).

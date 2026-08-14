@@ -156,8 +156,8 @@ const PAGES: Page[] = [
           </li>
         </ul>
         <p className="muted">
-          Solo vs computer works in any browser. Multiplayer is only at a Road Trip table in Second
-          Life — sit, Enter Table, then Create or Join.
+          Solo vs computer works in any browser (this site). Multiplayer is only at a Road Trip table
+          in Second Life — sit, then Create or Join. A seated HUD always drives the table.
         </p>
       </>
     ),

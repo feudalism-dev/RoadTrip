@@ -353,8 +353,8 @@ function AppInner() {
             Play Solo vs AI
           </button>
           <p className="muted">
-            Multiplayer is only at a Road Trip table in Second Life. Sit, Enter Table, then Create or
-            Join.
+            Multiplayer is only at a Road Trip table in Second Life. Sit, then Create or Join. This
+            page is solo vs computer only.
           </p>
           <button className="btn ghost" onClick={() => setScreen('help')}>
             How to Play
@@ -418,8 +418,8 @@ function AppInner() {
           <p className="brand-kicker">Multiplayer</p>
           <h2>Sit at a table</h2>
           <p>
-            Multiplayer only runs from a Road Trip table in Second Life. Sit, Enter Table, then Create
-            or Join. Solo vs computer works in this browser anytime.
+            Multiplayer only runs from a Road Trip table in Second Life. Sit, then Create or Join.
+            This page is solo vs computer only.
           </p>
           <button className="btn primary" onClick={() => setScreen('soloSetup')}>
             Play Solo vs AI

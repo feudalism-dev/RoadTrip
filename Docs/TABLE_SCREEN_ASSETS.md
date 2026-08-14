@@ -15,7 +15,7 @@
 3. Drop all **50** textures into the **Track** prim inventory (same prim as `RoadTrip_Track.lsl`).
 4. Drop/recompile: `RoadTrip_Table.lsl`, `RoadTrip_Track.lsl`, `RoadTrip_HUD.lsl`.
 5. Reset Track — owner chat should say all 50 screen textures found.
-6. Sit → Enter Table → Solo/MP → confirm attract panoramas, hazard HIT/PLAY, miles, and end places.
+6. Sit → HUD auto-enters → Solo/MP → confirm attract panoramas, hazard HIT/PLAY, miles, and end places.
 
 Track looks up textures with `llGetInventoryKey` by slug. No UUID pasting. A leftover `v4_` prefix on inventory names still works as a fallback.
 
