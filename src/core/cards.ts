@@ -104,12 +104,12 @@ export const CARD_DEFS: CardDef[] = [
   def(CardId.GpsError, CardCategory.Hazard, 'GPS Error', 'GPS', { isBattleHazard: true, defaultCount: 2 }),
 
   def(CardId.Drive, CardCategory.Remedy, 'Drive', 'GO', { countersHazard: CardId.RedLight, defaultCount: 14 }),
-  def(CardId.Repairs, CardCategory.Remedy, 'Repairs', 'FIX', { countersHazard: CardId.Accident, defaultCount: 6 }),
-  def(CardId.Gasoline, CardCategory.Remedy, 'Gasoline', 'FUEL', { countersHazard: CardId.OutOfGas, defaultCount: 6 }),
-  def(CardId.SpareTire, CardCategory.Remedy, 'Spare Tire', 'SPARE', { countersHazard: CardId.FlatTire, defaultCount: 6 }),
-  def(CardId.EndOfLimit, CardCategory.Remedy, 'End of Limit', 'END', { countersHazard: CardId.SpeedLimit, defaultCount: 6 }),
-  def(CardId.TrafficClear, CardCategory.Remedy, 'Traffic Clear', 'CLEAR', { countersHazard: CardId.TrafficJam, defaultCount: 4 }),
-  def(CardId.NavigationFix, CardCategory.Remedy, 'Navigation Fix', 'NAV', { countersHazard: CardId.GpsError, defaultCount: 4 }),
+  def(CardId.Repairs, CardCategory.Remedy, 'Repairs', 'FIX', { countersHazard: CardId.Accident, defaultCount: 8 }),
+  def(CardId.Gasoline, CardCategory.Remedy, 'Gasoline', 'FUEL', { countersHazard: CardId.OutOfGas, defaultCount: 8 }),
+  def(CardId.SpareTire, CardCategory.Remedy, 'Spare Tire', 'SPARE', { countersHazard: CardId.FlatTire, defaultCount: 8 }),
+  def(CardId.EndOfLimit, CardCategory.Remedy, 'End of Limit', 'END', { countersHazard: CardId.SpeedLimit, defaultCount: 8 }),
+  def(CardId.TrafficClear, CardCategory.Remedy, 'Traffic Clear', 'CLEAR', { countersHazard: CardId.TrafficJam, defaultCount: 6 }),
+  def(CardId.NavigationFix, CardCategory.Remedy, 'Navigation Fix', 'NAV', { countersHazard: CardId.GpsError, defaultCount: 6 }),
 
   def(CardId.EmergencyVehicle, CardCategory.Safety, 'Emergency Vehicle', 'EV', { countersHazard: CardId.RedLight, defaultCount: 1 }),
   def(CardId.DrivingAce, CardCategory.Safety, 'Driving Ace', 'ACE', { countersHazard: CardId.Accident, defaultCount: 1 }),

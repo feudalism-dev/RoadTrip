@@ -31,6 +31,22 @@ Miles require you to be **moving**: **Drive** (or any battle remedy after a fix)
 
 Match the hazard. Battle fixes put you back on the road (miles OK). Red Light is cleared by Drive. Speed Limit cleared by End of Limit.
 
+## Deck (119 → 131 cards)
+
+Hazards **21**, remedies **58** (including **14 Drive**), miles **46**, safeties **6**.
+
+| Hazard (count) | Remedy (count) | Ratio |
+|---|---|---|
+| Red Light 4 | Drive 14 | Drive also starts the race |
+| Accident 3 | Repairs 8 | ~2.7:1 |
+| Out of Gas 3 | Gasoline 8 | ~2.7:1 |
+| Flat Tire 3 | Spare Tire 8 | ~2.7:1 |
+| Speed Limit 4 | End of Limit 8 | 2:1 |
+| Traffic Jam 2 | Traffic Clear 6 | 3:1 |
+| GPS Error 2 | Navigation Fix 6 | 3:1 |
+
+Drive stays at 14: you still cannot start (or clear Red Light) without GO. After any other battle remedy you do **not** need another Drive.
+
 ## Safeties
 
 Permanent immunity. Playing a safety grants an **extra turn**. Matching safety clears a showing hazard.
