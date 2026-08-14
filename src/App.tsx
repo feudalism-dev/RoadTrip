@@ -28,6 +28,8 @@ import type { TableStatus } from './sl/tableApi'
 import { AppChrome } from './ui/AppChrome'
 import { ParkedHud } from './ui/ParkedHud'
 import { assets } from './ui/assets'
+import { FinishOverlay } from './ui/FinishOverlay'
+import { HowToPlay } from './ui/HowToPlay'
 
 type Screen = 'menu' | 'soloSetup' | 'lobby' | 'game' | 'help' | 'sl'
 
@@ -329,6 +331,7 @@ function AppInner() {
         peerSeats={peer?.seats}
         isPeerHost={peer?.isHost}
         onPeerReady={() => peer?.setReady(true)}
+        onHowToPlay={() => setScreen('help')}
       />,
     )
   }
@@ -362,28 +365,8 @@ function AppInner() {
   if (screen === 'help') {
     return wrap(
       <div className="shell-menu">
-        <div className="menu-card wide">
-          <p className="brand-kicker">Rules</p>
-          <h2>How to Play</h2>
-          <ol className="help-list">
-            <li>
-              Play <strong>Drive</strong> to start moving, then green <strong>mile cards</strong> toward exactly 1000.
-            </li>
-            <li>
-              Opponents hit you with red hazards — matching remedies/safeties clear them and put you back on the road
-              (no second Drive needed after a fix). If you hold the matching Safety when hit, play it as a
-              <strong> Counter Attack</strong> and steal the turn.
-            </li>
-            <li>On your turn: tap Draw or Discard to take a card (auto-draws if discard is empty).</li>
-            <li>
-              Tap a glowing card, then Play — or slide a hazard onto an opponent, or slide down / tap Discard to dump
-              it.
-            </li>
-            <li>Use UI size at the top if the HUD feels too large or too small for your monitor.</li>
-          </ol>
-          <button className="btn secondary" onClick={() => setScreen('menu')}>
-            Back
-          </button>
+        <div className="menu-card wide help-card">
+          <HowToPlay onClose={() => setScreen(slBoot ? 'sl' : 'menu')} closeLabel="Back" />
         </div>
       </div>,
     )
@@ -594,15 +577,12 @@ function AppInner() {
   let endOverlay: ReactNode = null
   if (state.phase === MatchPhase.Finished) {
     endOverlay = (
-      <div className="banner-overlay">
-        <div className="banner-card">
-          <h2>{state.winnerIndex >= 0 ? state.players[state.winnerIndex]!.displayName : 'Nobody'}</h2>
-          <p>{state.lastMessage}</p>
-          <button className="btn primary" onClick={() => void leaveToMenu()}>
-            {slBoot ? 'Back to Table Lobby' : 'Main Menu'}
-          </button>
-        </div>
-      </div>
+      <FinishOverlay
+        state={state}
+        localIndex={localIndex}
+        ctaLabel={slBoot ? 'Back to Table Lobby' : 'Main Menu'}
+        onCta={() => void leaveToMenu()}
+      />
     )
   }
 

@@ -65,10 +65,11 @@ export function Card({
   const def = !faceDown && id !== undefined ? getCard(id) : null
   const visual = !faceDown && id !== undefined ? cardVisual(id) : null
   const faceSrc = !faceDown && id !== undefined ? cardFaceUrl(id) : null
-  const [faceOk, setFaceOk] = useState(false)
+  const [faceFailed, setFaceFailed] = useState(false)
+  const artOn = Boolean(faceSrc) && !faceFailed
 
   useEffect(() => {
-    setFaceOk(false)
+    setFaceFailed(false)
   }, [faceSrc])
 
   const body: ReactNode = faceDown || !def || !visual ? (
@@ -77,15 +78,14 @@ export function Card({
     <>
       {faceSrc && (
         <img
-          className={faceOk ? 'pcard-art is-on' : 'pcard-art'}
+          className={artOn ? 'pcard-art is-on' : 'pcard-art'}
           src={faceSrc}
           alt=""
           draggable={false}
-          onLoad={() => setFaceOk(true)}
-          onError={() => setFaceOk(false)}
+          onError={() => setFaceFailed(true)}
         />
       )}
-      {!faceOk && (
+      {!artOn && (
         <>
           <div className="pcard-top">
             <span className="pcard-icon">{visual.icon}</span>
@@ -163,7 +163,7 @@ export function Card({
             selected ? 'is-selected' : '',
             dimmed ? 'is-dim' : '',
             faceDown ? 'is-back' : '',
-            faceOk ? 'has-art' : '',
+            artOn ? 'has-art' : '',
             draggablePlay ? 'is-slideable' : '',
             className,
           ]

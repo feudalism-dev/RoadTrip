@@ -30,6 +30,7 @@ type Props = {
   peerSeats?: { id: string; name: string; ready: boolean; isHost: boolean }[]
   isPeerHost?: boolean
   onPeerReady?: () => void
+  onHowToPlay?: () => void
 }
 
 export function SlTableScreens({
@@ -51,6 +52,7 @@ export function SlTableScreens({
   peerSeats,
   isPeerHost,
   onPeerReady,
+  onHowToPlay,
 }: Props) {
   const [entered, setEntered] = useState(false)
   const [table, setTable] = useState<TableStatus | null>(null)
@@ -173,6 +175,11 @@ export function SlTableScreens({
           >
             Play Solo vs AI
           </button>
+          {onHowToPlay && (
+            <button type="button" className="btn ghost" onClick={onHowToPlay}>
+              How to Play
+            </button>
+          )}
           {err && <p className="sl-error">{err}</p>}
           {status && <p className="muted">{status}</p>}
         </div>
