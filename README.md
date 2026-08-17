@@ -48,11 +48,13 @@ Site: `https://<you>.github.io/RoadTrip/`
 
 ## Second Life (in-world)
 
-1. Put `lsl/RoadTrip_Table.lsl` on the game table (with AVsitter; seats 0–3). Compile with your **Experience**.
-2. Put `lsl/RoadTrip_Track.lsl` on the Track sibling prim (`car1`–`car4` + `screens`).
+1. Put `lsl/RoadTrip_Table.lsl` **and** `lsl/RoadTrip_Http.lsl` on the game table root (with AVsitter; seats 0–3). Compile Table + HUD with your **Experience**.
+2. Put `lsl/RoadTrip_Track.lsl` **and** `lsl/RoadTrip_Screens.lsl` on the Track sibling prim (`car1`–`car4` + `screens`).
 3. Upload all **50** PNGs from `assets/table_screens_upload/` into the **Track** prim inventory — keep inventory names = filename without `.png`.
 4. Build HUD object named **`RoadTrip HUD`** (square, media face **4**), put `lsl/RoadTrip_HUD.lsl` in it (same Experience), then put that object in the **table** inventory.
 5. Whitelist `feudalism-dev.github.io` for media; bump `HUD_PAGE_ASSET_REV` after Pages deploys.
 6. Sit → table rezzes/attaches HUD → lobby (auto-enter). Solo and MP both drive the table.
+
+Recompile order: Screens → Track → Http → Table.
 
 Details: [Docs/SECOND_LIFE.md](Docs/SECOND_LIFE.md) · textures: [Docs/TABLE_SCREEN_ASSETS.md](Docs/TABLE_SCREEN_ASSETS.md).

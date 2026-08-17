@@ -16,14 +16,29 @@ export function finishStandings(state: MatchState, localIndex: number): FinishSt
     isYou: i === localIndex,
   }))
   rows.sort((a, b) => {
-    if (a.playerIndex === state.winnerIndex) return -1
-    if (b.playerIndex === state.winnerIndex) return 1
-    return b.miles - a.miles
+    if (b.miles !== a.miles) return b.miles - a.miles
+    return a.playerIndex - b.playerIndex
   })
-  return rows.map((r, idx) => ({ ...r, place: idx + 1 }))
+  let place = 1
+  return rows.map((r, idx) => {
+    if (idx > 0 && r.miles < rows[idx - 1]!.miles) place = idx + 1
+    return { ...r, place }
+  })
 }
 
-function placeCopy(place: number, field: number): { kicker: string; title: string; blurb: string; tone: string } {
+function placeCopy(
+  place: number,
+  field: number,
+  tiedForFirst: boolean,
+): { kicker: string; title: string; blurb: string; tone: string } {
+  if (place === 1 && tiedForFirst) {
+    return {
+      kicker: 'Finish',
+      title: "IT'S A TIE",
+      blurb: 'Same miles at the front — you share the lead.',
+      tone: 'tie',
+    }
+  }
   if (place === 1) {
     return {
       kicker: 'Finish',
@@ -79,8 +94,10 @@ type Props = {
 export function FinishOverlay({ state, localIndex, ctaLabel, onCta }: Props) {
   const ranked = finishStandings(state, localIndex)
   const me = ranked.find((r) => r.isYou) ?? ranked[0]!
-  const copy = placeCopy(me.place, ranked.length)
-  const confetti = copy.tone === 'win'
+  const tiedForFirst = ranked.filter((r) => r.place === 1).length > 1
+  const copy = placeCopy(me.place, ranked.length, tiedForFirst)
+  const confetti = copy.tone === 'win' || copy.tone === 'tie'
+  const reachedGoal = me.miles >= state.config.goalMiles
 
   return (
     <div className={`finish-overlay tone-${copy.tone}`} role="dialog" aria-modal="true" aria-label={copy.title}>
@@ -108,7 +125,9 @@ export function FinishOverlay({ state, localIndex, ctaLabel, onCta }: Props) {
         <p className="finish-blurb">{copy.blurb}</p>
         <p className="finish-miles">
           {me.miles} miles
-          {me.place === 1 ? ' · first to the finish' : ''}
+          {me.place === 1 && tiedForFirst ? ' · tied for the lead' : ''}
+          {me.place === 1 && !tiedForFirst && reachedGoal ? ' · first to the finish' : ''}
+          {me.place === 1 && !tiedForFirst && !reachedGoal ? ' · in the lead' : ''}
         </p>
         <ol className="finish-board">
           {ranked.map((r) => (

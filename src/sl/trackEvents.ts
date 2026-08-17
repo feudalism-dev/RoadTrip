@@ -197,21 +197,31 @@ export function payloadsFromState(
   if (prev.phase !== MatchPhase.Finished && next.phase === MatchPhase.Finished) {
     const ranked = next.players
       .map((p, i) => ({ i, miles: p.miles }))
-      .sort((a, b) => b.miles - a.miles)
-    const seats = [0, 0, 0, 0]
-    for (let r = 0; r < ranked.length && r < 4; r++) {
-      seats[r] = wireOf(map, ranked[r]!.i)
-    }
+      .sort((a, b) => {
+        if (b.miles !== a.miles) return b.miles - a.miles
+        return a.i - b.i
+      })
     if (next.winnerIndex >= 0) {
-      const winSeat = wireOf(map, next.winnerIndex)
-      const others = seats.filter((s) => s !== winSeat && s > 0)
-      seats[0] = winSeat
-      seats[1] = others[0] ?? 0
-      seats[2] = others[1] ?? 0
-      seats[3] = others[2] ?? 0
+      const win = ranked.find((r) => r.i === next.winnerIndex)
+      const rest = ranked.filter((r) => r.i !== next.winnerIndex)
+      if (win) {
+        ranked.length = 0
+        ranked.push(win, ...rest)
+      }
+    }
+    const seats = [0, 0, 0, 0]
+    const places = [0, 0, 0, 0]
+    for (let r = 0; r < ranked.length && r < 4; r++) {
+      const row = ranked[r]!
+      seats[r] = wireOf(map, row.i)
+      let ahead = 0
+      for (let k = 0; k < ranked.length; k++) {
+        if (ranked[k]!.miles > row.miles) ahead++
+      }
+      places[r] = ahead + 1
     }
     out.push(
-      ['GAME_OVER', seats[0], seats[1], 'RANK', seats[2], seats[3]].join('|'),
+      ['GAME_OVER', seats[0], seats[1], 'RANK', seats[2], seats[3], 'PLACES', places[0], places[1], places[2], places[3]].join('|'),
     )
     return out
   }
@@ -293,18 +303,25 @@ export function emitFromState(
   const { slCap, uid, localSeat } = opts
   emitChain = emitChain
     .then(async () => {
-      let pauseAfterHazard = false
+      let pauseAfterSplash = false
       for (const p of payloads) {
-        if (pauseAfterHazard) {
-          await sleep(HAZARD_SCREEN_HOLD_MS)
-          pauseAfterHazard = false
+        if (pauseAfterSplash) {
+          await sleep(SPLASH_SCREEN_HOLD_MS)
+          pauseAfterSplash = false
         }
         try {
           await tableEvent(slCap, uid, localSeat, p)
         } catch {
           /* ignore — MOAP / cap blips */
         }
-        if (p.startsWith('HAZARD|')) pauseAfterHazard = true
+        if (
+          p.startsWith('HAZARD|') ||
+          p.startsWith('MILEAGE|') ||
+          p.startsWith('REMEDY|') ||
+          p.startsWith('SAFETY|')
+        ) {
+          pauseAfterSplash = true
+        }
       }
     })
     .catch(() => {
@@ -312,7 +329,7 @@ export function emitFromState(
     })
 }
 
-const HAZARD_SCREEN_HOLD_MS = 2800
+const SPLASH_SCREEN_HOLD_MS = 2800
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))

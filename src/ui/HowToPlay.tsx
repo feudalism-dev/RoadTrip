@@ -20,6 +20,10 @@ const PAGES: Page[] = [
           <li>2–4 drivers (you + computers, or friends at a Second Life table).</li>
           <li>Green mile cards: 25, 50, 75, 100, 200.</li>
           <li>At most <strong>two 200-mile</strong> cards in the whole race.</li>
+          <li>
+            If the leftover cards cannot be played (a recycle loop of dead cards), the race ends.
+            The driver in front wins; equal leaders <strong>tie</strong>.
+          </li>
         </ul>
       </>
     ),

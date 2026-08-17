@@ -228,6 +228,71 @@ describe('RulesEngine', () => {
     expect(state.phase).not.toBe(MatchPhase.AwaitingAutoClub)
     expect(state.players[0]!.stuckTurns).toBe(5)
   })
+
+  it('ends when remaining cards cannot be played, leader wins', () => {
+    const state = deadCardLoop(950, 700)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles200)).ok).toBe(true)
+    expect(state.phase).toBe(MatchPhase.Finished)
+    expect(state.winnerIndex).toBe(0)
+    expect(state.lastMessage).toMatch(/No remaining cards can be played/i)
+    expect(state.lastMessage).toMatch(/Alice leads with 950/)
+  })
+
+  it('ties when remaining cards cannot be played and leaders match', () => {
+    const state = deadCardLoop(800, 800)
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles200)).ok).toBe(true)
+    expect(state.phase).toBe(MatchPhase.Finished)
+    expect(state.winnerIndex).toBe(-1)
+    expect(state.lastMessage).toMatch(/Alice and Bob tie at 800/)
+  })
+
+  it('does not end while a needed Drive is still in the discard', () => {
+    const state = createMatch(['Alice', 'Bob'], [true, true], defaultConfig(33))
+    const alice = state.players[0]!
+    const bob = state.players[1]!
+    alice.battlePile = []
+    bob.battlePile = []
+    alice.miles = 400
+    bob.miles = 350
+    alice.hand = [CardId.Miles25]
+    bob.hand = [CardId.Miles25]
+    state.drawPile = []
+    state.discardPile = [CardId.Drive]
+    state.phase = MatchPhase.Playing
+    state.currentPlayer = 0
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(state.phase).not.toBe(MatchPhase.Finished)
+    expect(state.currentPlayer).toBe(1)
+  })
+
+  it('waits for Auto Club when a tow would unlock miles', () => {
+    const state = deadCardLoop(200, 990)
+    const alice = state.players[0]!
+    alice.battlePile = [CardId.Drive, CardId.FlatTire]
+    alice.stuckHazard = CardId.FlatTire
+    alice.stuckTurns = 3
+    alice.miles200Played = 0
+    alice.hand = [CardId.Miles25]
+    state.drawPile = [CardId.Miles200]
+    state.discardPile = []
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles25)).ok).toBe(true)
+    expect(state.phase).not.toBe(MatchPhase.Finished)
+    expect(state.currentPlayer).toBe(1)
+  })
+
+  it('ends a dead recycle even if a driver is still stalled', () => {
+    const state = deadCardLoop(950, 700)
+    const alice = state.players[0]!
+    const bob = state.players[1]!
+    alice.battlePile = [CardId.Drive, CardId.FlatTire]
+    alice.stuckHazard = CardId.FlatTire
+    alice.stuckTurns = 3
+    alice.safeties = [CardId.PunctureProof]
+    bob.safeties = [CardId.PunctureProof]
+    expect(tryApply(state, discardMove(0, 0, CardId.Miles200)).ok).toBe(true)
+    expect(state.phase).toBe(MatchPhase.Finished)
+    expect(state.winnerIndex).toBe(0)
+  })
 })
 
 function stallUnderHazard(miles: number, stuckTurns: number) {
@@ -242,5 +307,25 @@ function stallUnderHazard(miles: number, stuckTurns: number) {
   state.currentPlayer = 0
   state.pendingAutoClub = null
   state.discardPile = []
+  return state
+}
+
+function deadCardLoop(aliceMiles: number, bobMiles: number) {
+  const state = createMatch(['Alice', 'Bob'], [true, true], defaultConfig(35))
+  const alice = state.players[0]!
+  const bob = state.players[1]!
+  alice.battlePile = [CardId.Drive]
+  bob.battlePile = [CardId.Drive]
+  alice.miles = aliceMiles
+  bob.miles = bobMiles
+  alice.miles200Played = 2
+  bob.miles200Played = 2
+  alice.hand = [CardId.Miles200]
+  bob.hand = [CardId.Miles200]
+  state.drawPile = [CardId.Miles200]
+  state.discardPile = [CardId.Miles200]
+  state.phase = MatchPhase.Playing
+  state.currentPlayer = 0
+  state.pendingAutoClub = null
   return state
 }

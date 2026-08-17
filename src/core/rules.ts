@@ -111,7 +111,7 @@ function beginDrawPhase(state: MatchState): void {
 
   if (!cardsRemainToDraw(state)) {
     if (!state.players[state.currentPlayer]!.hand.length) {
-      finishByExhaustion(state)
+      finishByLead(state, 'No cards left to draw.')
       return
     }
     state.phase = MatchPhase.Playing
@@ -125,7 +125,7 @@ function beginDrawPhase(state: MatchState): void {
     drawToHand(state, state.currentPlayer)
     state.phase = MatchPhase.Playing
     if (!state.players[state.currentPlayer]!.hand.length && !cardsRemainToDraw(state)) {
-      finishByExhaustion(state)
+      finishByLead(state, 'No cards left to draw.')
     }
     return
   }
@@ -370,18 +370,97 @@ function playSafety(state: MatchState, playerIndex: number, safety: CardId, coup
   }
 }
 
-function finishByExhaustion(state: MatchState): void {
-  state.phase = MatchPhase.Finished
-  let best = 0
+function leadingIndexes(state: MatchState): number[] {
   let bestMiles = -1
+  const leaders: number[] = []
   state.players.forEach((p, i) => {
     if (p.miles > bestMiles) {
       bestMiles = p.miles
-      best = i
+      leaders.length = 0
+      leaders.push(i)
+    } else if (p.miles === bestMiles) {
+      leaders.push(i)
     }
   })
-  state.winnerIndex = best
-  state.lastMessage = `No cards left to draw. ${state.players[best]!.displayName} leads with ${bestMiles} miles.`
+  return leaders
+}
+
+function finishByLead(state: MatchState, why: string): void {
+  state.phase = MatchPhase.Finished
+  const leaders = leadingIndexes(state)
+  const best = leaders[0] ?? 0
+  const bestMiles = state.players[best]!.miles
+  if (leaders.length === 1) {
+    state.winnerIndex = best
+    state.lastMessage = `${why} ${state.players[best]!.displayName} leads with ${bestMiles} miles.`
+    return
+  }
+  state.winnerIndex = -1
+  const names = leaders.map((i) => state.players[i]!.displayName).join(' and ')
+  state.lastMessage = `${why} ${names} tie at ${bestMiles} miles.`
+}
+
+function canPlayHeldCard(state: MatchState, playerIndex: number, card: CardId): boolean {
+  const me = state.players[playerIndex]!
+  const def = getCard(card)
+  if (def.category === CardCategory.Distance) return canPlayDistance(state, playerIndex, card)
+  if (def.category === CardCategory.Remedy) return canPlayRemedy(state, playerIndex, card)
+  if (def.category === CardCategory.Safety) return !hasSafety(me, card)
+  if (def.category === CardCategory.Hazard) {
+    for (let t = 0; t < state.players.length; t++) {
+      if (t === playerIndex) continue
+      if (canPlayHazard(state, playerIndex, t, card)) return true
+    }
+  }
+  return false
+}
+
+/** True if any remaining card (hands, draw, or discard) is a legal play for someone. */
+function supplyHasLegalPlay(state: MatchState): boolean {
+  const seen = new Set<CardId>()
+  const consider = (card: CardId): boolean => {
+    if (seen.has(card)) return false
+    seen.add(card)
+    for (let p = 0; p < state.players.length; p++) {
+      if (canPlayHeldCard(state, p, card)) return true
+    }
+    return false
+  }
+  for (const card of state.drawPile) {
+    if (consider(card)) return true
+  }
+  for (const card of state.discardPile) {
+    if (consider(card)) return true
+  }
+  for (const player of state.players) {
+    for (const card of player.hand) {
+      if (consider(card)) return true
+    }
+  }
+  return false
+}
+
+function towWouldUnlockPlay(state: MatchState): boolean {
+  for (let i = 0; i < state.players.length; i++) {
+    if (!battleHazardTop(state.players[i]!)) continue
+    const clone = structuredClone(state)
+    applyTow(clone, i, 0, true)
+    if (supplyHasLegalPlay(clone)) return true
+  }
+  return false
+}
+
+/**
+ * Recycle can loop forever on dead cards (200s that overshoot, hazards vs safeties, etc.).
+ * End when nothing left can be played, unless an Auto Club tow would unlock a play.
+ */
+function maybeFinishIfStuck(state: MatchState): boolean {
+  if (state.phase === MatchPhase.Finished) return true
+  if (state.pending || state.pendingAutoClub) return false
+  if (supplyHasLegalPlay(state)) return false
+  if (towWouldUnlockPlay(state)) return false
+  finishByLead(state, 'No remaining cards can be played.')
+  return true
 }
 
 function cardsRemainToDraw(state: MatchState): boolean {
@@ -392,7 +471,7 @@ function endTurn(state: MatchState, skipStuckTick = false): void {
   if (state.phase === MatchPhase.Finished) return
   const handsEmpty = state.players.every((p) => p.hand.length === 0)
   if (!cardsRemainToDraw(state) && handsEmpty) {
-    finishByExhaustion(state)
+    finishByLead(state, 'No cards left to draw.')
     return
   }
 
@@ -400,6 +479,8 @@ function endTurn(state: MatchState, skipStuckTick = false): void {
     const stuck = tickStuckHazard(state, state.currentPlayer)
     if (stuck === 'offer') return
   }
+
+  if (maybeFinishIfStuck(state)) return
 
   let guard = 0
   do {
@@ -465,6 +546,7 @@ export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok
     state.pending = null
     state.currentPlayer = move.playerIndex
     state.lastMessage = `${me.displayName} Counter Attack! ${getCard(move.card).name}!`
+    if (maybeFinishIfStuck(state)) return { ok: true }
     beginDrawPhase(state)
     return { ok: true }
   }
@@ -541,6 +623,7 @@ export function tryApply(state: MatchState, move: GameMove): { ok: true } | { ok
     state.lastMessage = `${me.displayName} activated ${def.name} and takes another turn!`
     const stuck = tickStuckHazard(state, move.playerIndex)
     if (stuck === 'offer') return { ok: true }
+    if (maybeFinishIfStuck(state)) return { ok: true }
     beginDrawPhase(state)
     return { ok: true }
   }

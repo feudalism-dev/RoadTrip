@@ -5,7 +5,10 @@
 | Layer | Role |
 |--------|------|
 | **AVsitter** | Sit poses only (`90070` / `90065`). Does **not** attach the HUD. |
-| **Table LSL** | Roster, **rezzes HUD** from inventory, one-game lock, HTTP-IN |
+| **Table LSL** | Roster, **rezzes HUD**, one-game lock, Track reset handshake |
+| **Http LSL** | HTTP-IN JSONP (same root prim as Table) |
+| **Track LSL** | Cars + Furware names + event routing |
+| **Screens LSL** | Face textures, attract, sticky idle, splash (same prim as Track) |
 | **HUD LSL** | Experience **temp-attach** → set MOAP URL (Pages) |
 | **MOAP (React)** | Seated HUD always drives the table; public URL is solo-only |
 | **PeerJS** | Browser↔browser match traffic (not via the table) |
@@ -14,11 +17,16 @@
 Sit → AVsitter 90070
 Table → llRezObject("RoadTrip HUD") + RT_READY handshake on rez channel
 HUD → Experience → llAttachToAvatarTemp → MoAP https://…/RoadTrip/?tableId&seat&uid&sl_cap&…
-JS → HTTP-IN JSONP (Active, Create/Join/Start, events)
+JS → Http JSONP → Table (lock / events) → Track → Screens
 Browsers → PeerJS for multiplayer moves
 ```
 
-**Inventory:** put the HUD object named **`RoadTrip HUD`** (with `RoadTrip_HUD.lsl` inside) in the **table** prim inventory. Compile Table + HUD with the **same Experience**. Parcel must allow that Experience.
+**Inventory**
+
+- **Table root:** `RoadTrip_Table.lsl` + `RoadTrip_Http.lsl` + AVsitter; HUD object **`RoadTrip HUD`** in table inventory. Compile Table + HUD with the **same Experience**.
+- **Track prim:** `RoadTrip_Track.lsl` + `RoadTrip_Screens.lsl` + all screen PNGs + `car1`…`car4` + `screens` link.
+
+Parcel must allow that Experience.
 
 ## Hard rules
 
@@ -55,6 +63,8 @@ Table re-sends `RT_READY` on the rez handshake channel at attach, on the wearer�
 
 ## JS ↔ Table (HTTP-IN JSONP)
 
+`RoadTrip_Http.lsl` owns the URL and JSONP responses. Mutating actions are forwarded to Table on link `92001`.
+
 Query params: `action`, `cb`, `uid`, `name`, `seat`, plus action-specific fields.
 
 | action | Purpose |
@@ -76,14 +86,17 @@ Only the solo client or MP **host** emits. Table forwards `p` to Track via `llMe
 
 **Reset / start handshake:** `claim_solo`, `create`, and `start` put the table in mode `resetting`, send Track `91003` (RESET), and hold the JSONP response until Track replies `91004` (RESET_DONE) or a short timeout — then lock/lobby/match and (for solo/`start`) send Track `91002` (START). While `resetting`, further `claim_solo`/`create` are rejected. `end_game` clears the lock and triggers RESET → idle.
 
-### Track link nums
+### Link numbers
 
-| Num | Meaning |
-|-----|---------|
-| `91001` | `TRACK_CMD_EVENT` — pipe payload from web |
-| `91002` | `TRACK_CMD_START` — match / solo begin |
-| `91003` | `TRACK_CMD_RESET` — cars home + attract |
-| `91004` | `TRACK_RSP_RESET_DONE` — Track → Table |
+| Num | Dir | Meaning |
+|-----|-----|---------|
+| `91001` `TRACK_CMD_EVENT` | Table → Track | `str` = pipe `EVENT\|player\|target\|CARD\|value\|miles` |
+| `91002` `TRACK_CMD_START` | Table → Track | solo/match start pipe |
+| `91003` `TRACK_CMD_RESET` | Table → Track | Force cars→0 + Screens attract |
+| `91004` `TRACK_RSP_RESET_DONE` | Track → Table | Reset complete |
+| `91101` `SCR_CMD` | Track → Screens | Screen command pipe (FACE, PLAY, HIT, TURN, …) |
+| `91102` `SCR_RSP` | Screens → Track | `READY` / `GAMEOVER_DONE` |
+| `92001` `HTTP_CMD` | Http ↔ Table | `REQ` / `RESP` / `STATUS` / `CAP` |
 
 ## Track linkset (physical table)
 
@@ -91,22 +104,21 @@ Only the solo client or MP **host** emits. Table forwards `p` to Track via `llMe
 |------|------|
 | Root description contains `roadtrip-table` | Identify table (name changes with version) |
 | `car1`…`car4` | Lanes; sitter0→car1; snap Y from miles/1000; alpha hide if unused |
-| `screens` | Four faces (0–3) show per-seat textures from Track inventory |
+| `screens` | Four faces (0–3) show per-seat textures from Track prim inventory |
 
-**Textures:** drop all PNGs from `assets/table_screens_upload/` into the **Track** prim inventory. Keep inventory names = filename without `.png` (e.g. `hazard-hit-flat-tire`). Track resolves via `llGetInventoryKey` (also accepts a leftover `v4_` prefix). No UUID pasting.
+**Textures:** drop all PNGs from `assets/table_screens_upload/` into the **Track** prim inventory (same prim as Screens). Keep inventory names = filename without `.png`. Screens resolves via `llGetInventoryKey` (also accepts a leftover `v4_` prefix). No UUID pasting.
 
-Script: `lsl/RoadTrip_Track.lsl` (sibling to Table; cars + `screens` textures).
+**Scripts on Track prim:** `RoadTrip_Track.lsl` + `RoadTrip_Screens.lsl`.
 
-### Table ↔ Track link numbers
+Attract cycles panorama A then B on a timer (Screens). `GAME_OVER` shows competition places (`PLACES|p1|p2|p3|p4`: two 1sts skip 2nd, two 2nds skip 3rd). Holds ~5s on Screens, then Track resets cars + Screens attract + `91004`.
 
-| Num | Dir | Meaning |
-|-----|-----|---------|
-| `91001` `TRACK_CMD_EVENT` | Table → Track | `str` = pipe `EVENT\|player\|target\|CARD\|value\|miles` |
-| `91002` `TRACK_CMD_START` | Table → Track | `str` = seats in match, e.g. `"1,2"` or `"1,2,3,4"` |
-| `91003` `TRACK_CMD_RESET` | Table → Track | Force reset + attract |
-| `91004` `TRACK_RSP_RESET_DONE` | Track → Table | Reset complete (after `GAME_OVER` hold or `91003`) |
+### Recompile order
 
-Attract cycles panorama A then B on a timer. `GAME_OVER` shows place textures (`end-winner` / `end-2nd-place` / …) from ranked seats (`GAME_OVER|1st|2nd|RANK|3rd|4th`), holds ~5s, then reset + attract + `91004`.
+1. `RoadTrip_Screens.lsl` (Track prim)  
+2. `RoadTrip_Track.lsl` (Track prim)  
+3. `RoadTrip_Http.lsl` (Table root)  
+4. `RoadTrip_Table.lsl` (Table root)  
+5. `RoadTrip_HUD.lsl` (HUD object, after Pages if rev bumped)
 
 ## URL params (MOAP)
 

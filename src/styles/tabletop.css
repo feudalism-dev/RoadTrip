@@ -1426,6 +1426,10 @@ select {
   color: var(--gold);
 }
 
+.tone-tie .finish-title {
+  color: var(--gold);
+}
+
 .tone-second .finish-title {
   color: #d7e3f0;
 }

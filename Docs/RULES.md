@@ -14,7 +14,7 @@ First to exactly **1000** miles wins. Cannot overshoot. Max **two** 200-mile car
 2. Play one card **or** discard one.
 3. Hand size returns to 6 (except mid-safety extra turns).
 
-**House rule:** if the draw pile runs out, shuffle the discard pile back into the draw pile (the top discard stays face-up when there are 2+ cards). The race only ends on exhaustion when there are truly no cards left to recycle and nobody has a hand.
+**House rule:** if the draw pile runs out, shuffle the discard pile back into the draw pile (the top discard stays face-up when there are 2+ cards). If the leftover cards cannot legally be played — typical once only unusable 200s, extra hazards, or remedies with nothing to fix are cycling — the race ends at the end of that turn. Highest miles wins. Equal leaders **tie**.
 
 ## Drive
 
